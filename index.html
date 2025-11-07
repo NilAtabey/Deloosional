@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deloosional — Solve Your Studies</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+
+<body>
+    <div class="header-container">
+        <div class="header" id="headerSection">
+            <button id="collapseHeaderBtn" title="Collapse header" class="collapse-btn">▲</button>
+            <img id="logo" src="graphics/deloosional-logo.png" alt="Deloosional logo">
+            <p class="tagline">Every topic's a mystery. Every clue's a concept. Connect the dots, detective.</p>
+            <div class="controls">
+                <button id="addNoteBtn" class="btn btn-primary">➕ Add Note</button>
+                <button id="addMediaBtn" class="btn btn-primary">🖼️ Attach Media</button>
+                <button id="downloadBtn" class="btn btn-primary">⏬ Download Board</button>
+                <div class="board-size-controls">
+                    <label for="boardWidth">Width:</label>
+                    <input type="number" id="boardWidth" min="1000" max="5000" value="2000" step="100">
+                    <label for="boardHeight">Height:</label>
+                    <input type="number" id="boardHeight" min="1000" max="5000" value="1500" step="100">
+                    <button id="resizeBoardBtn" class="btn btn-secondary">🔄 Resize Board</button>
+                </div>
+                <div class="toggle-container">
+                    <label for="toggleLinesSwitch" class="toggle-label">🔗 Strings:</label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggleLinesSwitch" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <button id="clearStringsBtn" class="btn btn-danger">✂️ Clear All Strings</button>
+                <button id="clearAllBtn" class="btn btn-danger">🗑️ Clear All</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="board-container">
+        <div id="corkboard" class="corkboard">
+            <canvas id="lineCanvas"></canvas>
+            <div id="notesContainer" class="notes-container"></div>
+        </div>
+    </div>
+
+    <!-- Note creation modal -->
+    <div id="noteModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Create New Note</h2>
+            <label for="noteTitle">Title:</label>
+            <input type="text" id="noteTitle" placeholder="Enter note title..." autofocus>
+            <label for="noteContent">Content:</label>
+            <textarea id="noteContent" placeholder="Enter note content..."></textarea>
+            <label for="noteType">Type:</label>
+            <select id="noteType">
+                <option value="concept">🎯 Concept</option>
+                <option value="fact">📋 Fact</option>
+                <option value="question">❓ Question</option>
+                <option value="theory">🔬 Theory</option>
+            </select>
+            <label for="noteColor">Color:</label>
+            <input type="color" id="noteColor" value="#ffeb3b" title="Choose note color">
+            <button id="createNoteBtn" class="btn btn-primary">Create Note</button>
+        </div>
+    </div>
+
+    <!-- Media attachment modal -->
+    <div id="mediaModal" class="modal">
+        <div class="modal-content">
+            <span class="close-media">&times;</span>
+            <h2>Attach Media</h2>
+            <label for="mediaUpload">Select Image:</label>
+            <input type="file" id="mediaUpload" accept="image/*">
+            <div id="mediaPreview" class="media-preview"></div>
+            <button id="createMediaBtn" class="btn btn-primary">Attach Media</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Collapse/expand header logic
+        const collapseBtn = document.getElementById('collapseHeaderBtn');
+        const headerSection = document.getElementById('headerSection');
+        collapseBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            if (headerSection.classList.contains('collapsed')) {
+                headerSection.classList.remove('collapsed');
+                collapseBtn.textContent = '▲';
+            } else {
+                headerSection.classList.add('collapsed');
+                collapseBtn.textContent = '▼';
+            }
+        });
+    </script>
+</body>
+
+</html>
