@@ -48,8 +48,28 @@ function initCanvas() {
     redrawLines();
 }
 
-// Resize board
+// Resize board modal
+const resizeModal = document.getElementById('resizeModal');
+const confirmResizeBtn = document.getElementById('confirmResizeBtn');
+const closeResizeModal = document.querySelector('.close-resize');
+
 resizeBoardBtn.addEventListener('click', () => {
+    resizeModal.style.display = 'block';
+    boardWidthInput.value = parseInt(corkboard.style.width) || 2000;
+    boardHeightInput.value = parseInt(corkboard.style.height) || 1500;
+});
+
+closeResizeModal.addEventListener('click', () => {
+    resizeModal.style.display = 'none';
+});
+
+window.addEventListener('click', (e) => {
+    if (e.target === resizeModal) {
+        resizeModal.style.display = 'none';
+    }
+});
+
+confirmResizeBtn.addEventListener('click', () => {
     const newWidth = parseInt(boardWidthInput.value) || 2000;
     const newHeight = parseInt(boardHeightInput.value) || 1500;
 
@@ -67,6 +87,7 @@ resizeBoardBtn.addEventListener('click', () => {
     }, 100);
 
     saveToStorage();
+    resizeModal.style.display = 'none';
 });
 
 // Resize canvas on window resize
@@ -172,7 +193,10 @@ function createMediaItem(mediaDataUrl, x, y) {
         type: 'media',
         mediaDataUrl: mediaDataUrl,
         x: x || 100,
-        y: y || 100
+        y: y || 100,
+        width: 300, // Default width
+        height: null, // Will be set based on aspect ratio
+        aspectRatio: null // Will be calculated when image loads
     };
 
     mediaItems.push(mediaItem);
@@ -189,6 +213,14 @@ function renderMediaItem(mediaItem) {
     mediaElement.style.left = mediaItem.x + 'px';
     mediaElement.style.top = mediaItem.y + 'px';
 
+    // Set width and height if they exist
+    if (mediaItem.width) {
+        mediaElement.style.width = mediaItem.width + 'px';
+    }
+    if (mediaItem.height) {
+        mediaElement.style.height = mediaItem.height + 'px';
+    }
+
     mediaElement.innerHTML = `
         <div class="thumbtack"></div>
         <div class="connection-point top" data-position="top"></div>
@@ -202,9 +234,26 @@ function renderMediaItem(mediaItem) {
                 <button class="delete-media-btn" data-media-id="${mediaItem.id}" title="Delete media">🗑️</button>
             </div>
         </div>
+        <div class="resize-handle" data-media-id="${mediaItem.id}" title="Resize media"></div>
     `;
 
     notesContainer.appendChild(mediaElement);
+
+    // Calculate aspect ratio when image loads
+    const img = mediaElement.querySelector('.media-image');
+    if (img) {
+        img.onload = function () {
+            if (!mediaItem.aspectRatio) {
+                mediaItem.aspectRatio = img.naturalWidth / img.naturalHeight;
+                if (!mediaItem.height) {
+                    mediaItem.height = mediaItem.width / mediaItem.aspectRatio;
+                    mediaElement.style.height = mediaItem.height + 'px';
+                }
+                saveToStorage();
+            }
+        };
+    }
+
     attachMediaListeners(mediaElement, mediaItem);
     updateMediaPosition(mediaItem.id);
 }
@@ -216,11 +265,22 @@ function attachMediaListeners(mediaElement, mediaItem) {
 
     mediaContainer.addEventListener('mousedown', (e) => {
         if (e.target.closest('.media-actions') ||
+            e.target.closest('.resize-handle') ||
             e.target.tagName === 'BUTTON') {
             return;
         }
         startDrag(mediaItem.id, e, true);
     });
+
+    // Resize handle
+    const resizeHandle = mediaElement.querySelector('.resize-handle');
+    if (resizeHandle) {
+        resizeHandle.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            startMediaResize(mediaItem.id, e);
+        });
+    }
 
     // Connect button - defaults to top edge
     const connectBtn = mediaElement.querySelector('.connect-media-btn');
@@ -267,6 +327,12 @@ function updateMediaPosition(mediaId) {
     if (mediaElement) {
         mediaElement.style.left = mediaItem.x + 'px';
         mediaElement.style.top = mediaItem.y + 'px';
+        if (mediaItem.width) {
+            mediaElement.style.width = mediaItem.width + 'px';
+        }
+        if (mediaItem.height) {
+            mediaElement.style.height = mediaItem.height + 'px';
+        }
     }
 }
 
@@ -791,7 +857,128 @@ function stopResize(e) {
     }
 }
 
+// Media resize functionality (maintains aspect ratio)
+let isMediaResizing = false;
+let resizeMediaItem = null;
+let mediaResizeStartX = 0;
+let mediaResizeStartY = 0;
+let mediaResizeStartWidth = 0;
+let mediaResizeStartHeight = 0;
+
+function startMediaResize(mediaId, e) {
+    if (isMediaResizing || isResizing || isDragging || isConnecting) return;
+
+    isMediaResizing = true;
+    resizeMediaItem = mediaItems.find(m => m.id === mediaId);
+    if (!resizeMediaItem) {
+        isMediaResizing = false;
+        return;
+    }
+
+    const mediaElement = document.getElementById(`media-${mediaId}`);
+    if (!mediaElement) {
+        isMediaResizing = false;
+        return;
+    }
+
+    // Calculate aspect ratio if not set
+    if (!resizeMediaItem.aspectRatio) {
+        const img = mediaElement.querySelector('.media-image');
+        if (img && img.naturalWidth && img.naturalHeight) {
+            resizeMediaItem.aspectRatio = img.naturalWidth / img.naturalHeight;
+        } else {
+            // Default to 1:1 if we can't determine
+            resizeMediaItem.aspectRatio = 1;
+        }
+    }
+
+    mediaResizeStartX = e.clientX;
+    mediaResizeStartY = e.clientY;
+    mediaResizeStartWidth = resizeMediaItem.width || 300;
+    mediaResizeStartHeight = resizeMediaItem.height || (mediaResizeStartWidth / resizeMediaItem.aspectRatio);
+
+    mediaElement.classList.add('resizing');
+
+    document.addEventListener('mousemove', onMediaResize);
+    document.addEventListener('mouseup', stopMediaResize);
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+function onMediaResize(e) {
+    if (!isMediaResizing || !resizeMediaItem) return;
+
+    const deltaX = e.clientX - mediaResizeStartX;
+    const deltaY = e.clientY - mediaResizeStartY;
+
+    // Use the larger delta to maintain aspect ratio
+    const delta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
+
+    const minWidth = 100;
+    const minHeight = 100;
+    const maxWidth = 800;
+    const maxHeight = 800;
+
+    // Calculate new width based on delta
+    let newWidth = mediaResizeStartWidth + delta;
+    newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+
+    // Calculate height to maintain aspect ratio
+    let newHeight = newWidth / resizeMediaItem.aspectRatio;
+    newHeight = Math.max(minHeight, Math.min(maxHeight, newHeight));
+
+    // If height would exceed max, recalculate from height
+    if (newHeight >= maxHeight) {
+        newHeight = maxHeight;
+        newWidth = newHeight * resizeMediaItem.aspectRatio;
+    }
+
+    resizeMediaItem.width = newWidth;
+    resizeMediaItem.height = newHeight;
+
+    const mediaElement = document.getElementById(`media-${resizeMediaItem.id}`);
+    if (mediaElement) {
+        mediaElement.style.width = newWidth + 'px';
+        mediaElement.style.height = newHeight + 'px';
+
+        // Update image to maintain aspect ratio
+        const img = mediaElement.querySelector('.media-image');
+        if (img) {
+            img.style.width = '100%';
+            img.style.height = '100%';
+            img.style.objectFit = 'contain';
+        }
+    }
+
+    // Redraw lines to update connection positions
+    redrawLines();
+}
+
+function stopMediaResize(e) {
+    if (isMediaResizing && resizeMediaItem) {
+        const mediaElement = document.getElementById(`media-${resizeMediaItem.id}`);
+        if (mediaElement) {
+            mediaElement.classList.remove('resizing');
+        }
+        saveToStorage();
+        redrawLines();
+    }
+    isMediaResizing = false;
+    resizeMediaItem = null;
+    document.removeEventListener('mousemove', onMediaResize);
+    document.removeEventListener('mouseup', stopMediaResize);
+    if (e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+}
+
 // Connection functionality
+let previewMouseX = 0;
+let previewMouseY = 0;
+let previewConnectionHandler = null;
+let cancelOnEmptyClickHandler = null;
+
 function startConnection(itemId, isMedia = false, position = 'top') {
     isConnecting = true;
     // Ensure position is valid
@@ -821,6 +1008,105 @@ function startConnection(itemId, isMedia = false, position = 'top') {
         }
     });
 
+    // Calculate initial start point for preview
+    let startItem;
+    if (connectionStart.isMedia) {
+        startItem = mediaItems.find(m => m.id === connectionStart.noteId);
+    } else {
+        startItem = notes.find(n => n.id === connectionStart.noteId);
+    }
+
+    if (startItem) {
+        const startElementId = connectionStart.isMedia ? `media-${startItem.id}` : `note-${startItem.id}`;
+        const startElement = document.getElementById(startElementId);
+        if (startElement) {
+            // Set initial preview position to start point
+            if (connectionStart.position === 'top') {
+                previewMouseX = startItem.x + startElement.offsetWidth / 2;
+                previewMouseY = startItem.y;
+            } else if (connectionStart.position === 'bottom') {
+                previewMouseX = startItem.x + startElement.offsetWidth / 2;
+                previewMouseY = startItem.y + startElement.offsetHeight;
+            } else if (connectionStart.position === 'left') {
+                previewMouseX = startItem.x;
+                previewMouseY = startItem.y + startElement.offsetHeight / 2;
+            } else if (connectionStart.position === 'right') {
+                previewMouseX = startItem.x + startElement.offsetWidth;
+                previewMouseY = startItem.y + startElement.offsetHeight / 2;
+            } else {
+                previewMouseX = startItem.x + startElement.offsetWidth / 2;
+                previewMouseY = startItem.y + startElement.offsetHeight / 2;
+            }
+        }
+    }
+
+    // Add mousemove handler to draw preview line
+    previewConnectionHandler = (e) => {
+        if (!isConnecting || !connectionStart) return;
+
+        const boardRect = corkboard.getBoundingClientRect();
+        previewMouseX = e.clientX - boardRect.left;
+        previewMouseY = e.clientY - boardRect.top;
+
+        // Redraw lines including preview
+        redrawLines();
+    };
+
+    document.addEventListener('mousemove', previewConnectionHandler);
+
+    // Cancel connection on empty space click
+    cancelOnEmptyClickHandler = (e) => {
+        if (!isConnecting || !connectionStart) return;
+
+        // Check if click is on a connection point or item
+        const target = e.target;
+        const isConnectionPoint = target.classList.contains('connection-point') ||
+            target.closest('.connection-point');
+        const isNoteOrMedia = target.closest('.sticky-note') ||
+            target.closest('.media-item');
+        const isButton = target.tagName === 'BUTTON' || target.closest('button');
+
+        // If clicked on empty space (not a connection point, item, or button), cancel
+        if (!isConnectionPoint && !isNoteOrMedia && !isButton) {
+            // Check if click is within the corkboard
+            const boardRect = corkboard.getBoundingClientRect();
+            const clickX = e.clientX;
+            const clickY = e.clientY;
+
+            if (clickX >= boardRect.left && clickX <= boardRect.right &&
+                clickY >= boardRect.top && clickY <= boardRect.bottom) {
+                // Click is within board, cancel connection
+                e.stopPropagation(); // Prevent other handlers from running
+                isConnecting = false;
+                connectionStart = null;
+                notes.forEach(note => {
+                    const noteElement = document.getElementById(`note-${note.id}`);
+                    if (noteElement) {
+                        noteElement.classList.remove('connecting');
+                    }
+                });
+                mediaItems.forEach(mediaItem => {
+                    const mediaElement = document.getElementById(`media-${mediaItem.id}`);
+                    if (mediaElement) {
+                        mediaElement.classList.remove('connecting');
+                    }
+                });
+                cleanupConnectionHandlers();
+                if (previewConnectionHandler) {
+                    document.removeEventListener('mousemove', previewConnectionHandler);
+                    previewConnectionHandler = null;
+                }
+                if (cancelOnEmptyClickHandler) {
+                    document.removeEventListener('click', cancelOnEmptyClickHandler, true);
+                    cancelOnEmptyClickHandler = null;
+                }
+                redrawLines(); // Clear preview line
+            }
+        }
+    };
+
+    document.addEventListener('click', cancelOnEmptyClickHandler, true);
+
     // Cancel connection on escape
     const cancelConnection = (e) => {
         if (e.key === 'Escape') {
@@ -839,11 +1125,21 @@ function startConnection(itemId, isMedia = false, position = 'top') {
                 }
             });
             cleanupConnectionHandlers();
+            if (previewConnectionHandler) {
+                document.removeEventListener('mousemove', previewConnectionHandler);
+                previewConnectionHandler = null;
+            }
+            if (cancelOnEmptyClickHandler) {
+                document.removeEventListener('click', cancelOnEmptyClickHandler, true);
+                cancelOnEmptyClickHandler = null;
+            }
             document.removeEventListener('keydown', cancelConnection);
+            redrawLines(); // Clear preview line
         }
     };
 
     document.addEventListener('keydown', cancelConnection);
+    redrawLines(); // Initial draw to show preview
 }
 
 function cleanupConnectionHandlers() {
@@ -890,6 +1186,11 @@ function completeConnection(endItemId, endPosition) {
             }
         });
         cleanupConnectionHandlers();
+        if (previewConnectionHandler) {
+            document.removeEventListener('mousemove', previewConnectionHandler);
+            previewConnectionHandler = null;
+        }
+        redrawLines(); // Clear preview line
         return;
     }
 
@@ -927,18 +1228,27 @@ function completeConnection(endItemId, endPosition) {
     });
 
     cleanupConnectionHandlers();
+    if (previewConnectionHandler) {
+        document.removeEventListener('mousemove', previewConnectionHandler);
+        previewConnectionHandler = null;
+    }
+    if (cancelOnEmptyClickHandler) {
+        document.removeEventListener('click', cancelOnEmptyClickHandler, true);
+        cancelOnEmptyClickHandler = null;
+    }
     redrawLines();
 }
 
 // Draw lines between connected notes
 function redrawLines() {
-    if (!linesVisible) {
+    if (!linesVisible && !isConnecting) {
         ctx.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
         return;
     }
 
     ctx.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
 
+    // Draw existing connections
     connections.forEach(connection => {
         // Find items (could be notes or media)
         let fromItem = notes.find(n => n.id === connection.from);
@@ -1007,6 +1317,46 @@ function redrawLines() {
         // Draw red string line with a slight curve for realism
         drawRedString(fromX, fromY, toX, toY);
     });
+
+    // Draw preview line if connecting
+    if (isConnecting && connectionStart) {
+        // Find the start item
+        let startItem;
+        if (connectionStart.isMedia) {
+            startItem = mediaItems.find(m => m.id === connectionStart.noteId);
+        } else {
+            startItem = notes.find(n => n.id === connectionStart.noteId);
+        }
+
+        if (startItem) {
+            const startElementId = connectionStart.isMedia ? `media-${startItem.id}` : `note-${startItem.id}`;
+            const startElement = document.getElementById(startElementId);
+
+            if (startElement) {
+                // Calculate start point
+                let startX, startY;
+                if (connectionStart.position === 'top') {
+                    startX = startItem.x + startElement.offsetWidth / 2;
+                    startY = startItem.y;
+                } else if (connectionStart.position === 'bottom') {
+                    startX = startItem.x + startElement.offsetWidth / 2;
+                    startY = startItem.y + startElement.offsetHeight;
+                } else if (connectionStart.position === 'left') {
+                    startX = startItem.x;
+                    startY = startItem.y + startElement.offsetHeight / 2;
+                } else if (connectionStart.position === 'right') {
+                    startX = startItem.x + startElement.offsetWidth;
+                    startY = startItem.y + startElement.offsetHeight / 2;
+                } else {
+                    startX = startItem.x + startElement.offsetWidth / 2;
+                    startY = startItem.y + startElement.offsetHeight / 2;
+                }
+
+                // Draw preview line to mouse position
+                drawRedString(startX, startY, previewMouseX, previewMouseY);
+            }
+        }
+    }
 }
 
 function drawRedString(x1, y1, x2, y2) {
