@@ -32,8 +32,7 @@ const noteModal = document.getElementById('noteModal');
 const mediaModal = document.getElementById('mediaModal');
 const closeModal = document.querySelector('.close');
 const closeMediaModal = document.querySelector('.close-media');
-const createNoteBtn = document.getElementById('createNoteBtn');
-const updateNoteBtn = document.getElementById('updateNoteBtn');
+const saveNoteBtn = document.getElementById('saveNoteBtn');
 const noteModalTitle = document.getElementById('noteModalTitle');
 let editingNoteId = null; // Track which note is being edited
 const createMediaBtn = document.getElementById('createMediaBtn');
@@ -293,8 +292,6 @@ function resetModal() {
     document.getElementById('noteType').value = 'concept';
     document.getElementById('noteColor').value = '#ffeb3b';
     noteModalTitle.textContent = 'Create New Note';
-    createNoteBtn.style.display = 'block';
-    updateNoteBtn.style.display = 'none';
     editingNoteId = null;
 }
 
@@ -305,47 +302,36 @@ window.addEventListener('click', (e) => {
     }
 });
 
-createNoteBtn.addEventListener('click', () => {
-    const title = document.getElementById('noteTitle').value.trim();
-    const content = document.getElementById('noteContent').value.trim();
-    const type = document.getElementById('noteType').value;
-    const color = document.getElementById('noteColor').value;
-
-    // allow creating notes even with empty title and content
-    createNote(title, content, type, color,
-        Math.random() * (corkboard.offsetWidth - 250) + 25,
-        Math.random() * (corkboard.offsetHeight - 200) + 25
-    );
-    noteModal.style.display = 'none';
-    resetModal();
-});
-
-updateNoteBtn.addEventListener('click', () => {
-    if (!editingNoteId) return;
-
+saveNoteBtn.addEventListener('click', () => {
     const title = document.getElementById('noteTitle').value.trim();
     const content = document.getElementById('noteContent').value;
     const type = document.getElementById('noteType').value;
     const color = document.getElementById('noteColor').value;
 
-    // update the note
-    const note = notes.find(n => n.id === editingNoteId);
-    if (note) {
-        note.title = title || 'New Note';
-        // convert newlines from textarea back to <br> tags for HTML rendering
-        note.content = content.replace(/\n/g, '<br>');
-        note.type = type;
-        note.color = color;
+    if (editingNoteId) {
+        // Update existing note
+        const note = notes.find(n => n.id === editingNoteId);
+        if (note) {
+            note.title = title || 'New Note';
+            // convert newlines from textarea back to <br> tags for HTML rendering
+            note.content = content.replace(/\n/g, '<br>');
+            note.type = type;
+            note.color = color;
 
-        // re-render the note with updated properties
-        renderNote(note);
-        // redraw lines in case connections need updating
-        redrawLines();
-        saveToStorage();
+            // re-render the note with updated properties
+            renderNote(note);
+            // redraw lines in case connections need updating
+            redrawLines();
+            saveToStorage();
+        }
+    } else {
+        // Create new note
+        createNote(title, content, type, color,
+            Math.random() * (corkboard.offsetWidth - 250) + 25,
+            Math.random() * (corkboard.offsetHeight - 200) + 25
+        );
     }
 
-    // reset editing state and close modal
-    editingNoteId = null;
     noteModal.style.display = 'none';
     resetModal();
 });
@@ -370,10 +356,8 @@ function openNoteModalForEdit(noteId) {
     document.getElementById('noteType').value = note.type || 'concept';
     document.getElementById('noteColor').value = note.color || '#ffeb3b';
 
-    // update modal title and button
+    // update modal title
     if (noteModalTitle) noteModalTitle.textContent = 'Edit Note';
-    if (createNoteBtn) createNoteBtn.style.display = 'none';
-    if (updateNoteBtn) updateNoteBtn.style.display = 'block';
 
     // show modal
     noteModal.style.display = 'block';
@@ -2879,12 +2863,20 @@ function renderBoardsList() {
 }
 
 function showWelcomePage() {
+    // Check if we're returning from board editor (board editor was visible)
+    const wasInBoardEditor = boardEditor && boardEditor.style.display !== 'none';
+
     if (welcomePage) welcomePage.style.display = 'flex';
     if (boardEditor) boardEditor.style.display = 'none';
     renderBoardsList();
     // Replace current state with welcome page state (so back button works correctly)
     if (window.history && window.history.replaceState) {
         window.history.replaceState({ page: 'welcome' }, '', window.location.pathname);
+    }
+
+    // Automatically turn on lights when returning to homepage from board editor
+    if (wasInBoardEditor) {
+        turnOnLightsSilently();
     }
 }
 
@@ -3210,5 +3202,354 @@ document.addEventListener('DOMContentLoaded', () => {
         rotateTitle(); // First rotation after 10 seconds
         setInterval(rotateTitle, 10000); // Then every 10 seconds
     }, 10000);
+
+    // Initialize Jazz Radio Player
+    initRadioPlayer();
+    initLightsToggle();
 });
+
+// ==================== JAZZ RADIO PLAYER ====================
+
+// Radio station stream URLs
+// Note: Jazz24 streams are verified and working
+// To add more stations, visit their websites and find their streaming URLs
+// Common format: Add stream URL, name, and MIME type
+const RADIO_STATIONS = {
+    'jazz24-256': {
+        name: 'Jazz24 (High Quality)',
+        url: 'https://knkx-live-a.edge.audiocdn.com/6285_256k',
+        type: 'audio/aac'
+    },
+    'jazz24-128': {
+        name: 'Jazz24 (Standard)',
+        url: 'https://knkx-live-a.edge.audiocdn.com/6285_128k',
+        type: 'audio/mpeg'
+    },
+    'jazz24-64': {
+        name: 'Jazz24 (Low Bandwidth)',
+        url: 'https://knkx-live-a.edge.audiocdn.com/6285_64k',
+        type: 'audio/aac'
+    }
+    // Additional stations can be added here:
+    // 'station-id': {
+    //     name: 'Station Name',
+    //     url: 'https://stream-url-here',
+    //     type: 'audio/mpeg' // or 'audio/aac', 'audio/ogg', etc.
+    // }
+};
+
+let radioAudio = null;
+let isRadioPlaying = false;
+let currentRadioStation = 'jazz24-128'; // Always use standard quality
+let radioVolume = 30;
+
+function initRadioPlayer() {
+    // Get DOM elements
+    const radioToggleBtn = document.getElementById('radioToggleBtn');
+    const radioAudioElement = document.getElementById('radioAudio');
+
+    if (!radioToggleBtn || !radioAudioElement) {
+        console.log('Radio player elements not found');
+        return;
+    }
+
+    // Load saved state from localStorage
+    // Always use standard quality (jazz24-128)
+    currentRadioStation = 'jazz24-128';
+    const savedVolume = localStorage.getItem('radioVolume');
+    const savedPlaying = localStorage.getItem('radioPlaying') === 'true';
+
+    // Load saved volume (default 30%)
+    if (savedVolume !== null) {
+        radioVolume = parseInt(savedVolume, 10);
+    } else {
+        radioVolume = 30; // Default 30%
+    }
+
+    // Initialize audio element
+    radioAudio = radioAudioElement;
+    radioAudio.volume = radioVolume / 100;
+
+    // Toggle play/pause on button click
+    radioToggleBtn.addEventListener('click', () => {
+        if (isRadioPlaying) {
+            pauseRadio();
+        } else {
+            playRadio();
+        }
+    });
+
+    // Audio event listeners
+    radioAudio.addEventListener('playing', () => {
+        isRadioPlaying = true;
+        updateRadioUI(true);
+        localStorage.setItem('radioPlaying', 'true');
+    });
+
+    radioAudio.addEventListener('pause', () => {
+        isRadioPlaying = false;
+        updateRadioUI(false);
+        localStorage.setItem('radioPlaying', 'false');
+    });
+
+    radioAudio.addEventListener('error', (e) => {
+        console.error('Radio error:', e);
+        isRadioPlaying = false;
+        updateRadioUI(false);
+        localStorage.setItem('radioPlaying', 'false');
+    });
+
+    // If was playing before, restore playback
+    if (savedPlaying) {
+        setTimeout(() => {
+            playRadio();
+        }, 500);
+    }
+
+    // Initialize homepage radio button
+    initHomepageRadioButton();
+}
+
+function initHomepageRadioButton() {
+    const homepageRadioBtn = document.getElementById('homepageRadioBtn');
+    if (!homepageRadioBtn) return;
+
+    // Create audio element if it doesn't exist (for homepage-only use)
+    if (!radioAudio) {
+        radioAudio = document.createElement('audio');
+        radioAudio.preload = 'none';
+        document.body.appendChild(radioAudio);
+
+        // Set up audio event listeners
+        radioAudio.addEventListener('playing', () => {
+            isRadioPlaying = true;
+            updateRadioUI(true);
+            localStorage.setItem('radioPlaying', 'true');
+        });
+
+        radioAudio.addEventListener('pause', () => {
+            isRadioPlaying = false;
+            updateRadioUI(false);
+            localStorage.setItem('radioPlaying', 'false');
+        });
+
+        radioAudio.addEventListener('error', (e) => {
+            console.error('Radio error:', e);
+            isRadioPlaying = false;
+            updateRadioUI(false);
+            localStorage.setItem('radioPlaying', 'false');
+        });
+
+        // Load saved state
+        const savedVolume = localStorage.getItem('radioVolume');
+        const savedPlaying = localStorage.getItem('radioPlaying') === 'true';
+        if (savedVolume !== null) {
+            radioVolume = parseInt(savedVolume, 10);
+            radioAudio.volume = radioVolume / 100;
+        } else {
+            radioAudio.volume = 0.3; // Default 30%
+        }
+
+        // Restore playback if it was playing
+        if (savedPlaying) {
+            setTimeout(() => {
+                playRadio();
+            }, 500);
+        }
+    }
+
+    // Set initial state
+    updateRadioUI(isRadioPlaying);
+
+    // Add click event listener
+    homepageRadioBtn.addEventListener('click', () => {
+        if (isRadioPlaying) {
+            pauseRadio();
+        } else {
+            playRadio();
+        }
+    });
+}
+
+function playRadio() {
+    if (!radioAudio) return;
+
+    const station = RADIO_STATIONS[currentRadioStation];
+    if (!station) {
+        console.error('Radio station not found');
+        return;
+    }
+
+    // If already playing the same station, do nothing
+    if (radioAudio.src && radioAudio.src.includes(station.url.split('/').pop()) && isRadioPlaying) {
+        return;
+    }
+
+    // Set new source
+    radioAudio.src = station.url;
+    radioAudio.type = station.type;
+    radioAudio.volume = radioVolume / 100;
+
+    // Play with error handling
+    const playPromise = radioAudio.play();
+    if (playPromise !== undefined) {
+        playPromise
+            .then(() => {
+                // Playback started successfully
+                isRadioPlaying = true;
+                updateRadioUI(true);
+            })
+            .catch(error => {
+                // Autoplay was prevented or other error
+                console.log('Radio play error:', error);
+                isRadioPlaying = false;
+                updateRadioUI(false);
+            });
+    }
+}
+
+function pauseRadio() {
+    if (!radioAudio) return;
+    radioAudio.pause();
+    isRadioPlaying = false;
+    updateRadioUI(false);
+    updateRadioStatus('Paused');
+}
+
+function updateRadioUI(playing) {
+    // Update sidebar button - show radio-off icon when playing, radio icon when paused
+    const radioIcon = document.getElementById('radioIcon');
+    const radioOffIcon = document.getElementById('radioOffIcon');
+    const radioToggleBtn = document.getElementById('radioToggleBtn');
+
+    if (radioIcon && radioOffIcon) {
+        if (playing) {
+            radioIcon.style.display = 'none';
+            radioOffIcon.style.display = 'block';
+            if (radioToggleBtn) {
+                radioToggleBtn.title = 'Pause Jazz Radio';
+            }
+        } else {
+            radioIcon.style.display = 'block';
+            radioOffIcon.style.display = 'none';
+            if (radioToggleBtn) {
+                radioToggleBtn.title = 'Play Jazz Radio';
+            }
+        }
+    }
+
+    // Update homepage button - show radio-off icon when playing, radio icon when paused
+    const homepageRadioBtn = document.getElementById('homepageRadioBtn');
+    const homepageRadioIcon = document.getElementById('homepageRadioIcon');
+    const homepageRadioOffIcon = document.getElementById('homepageRadioOffIcon');
+
+    if (homepageRadioBtn && homepageRadioIcon && homepageRadioOffIcon) {
+        if (playing) {
+            homepageRadioBtn.classList.add('playing');
+            homepageRadioIcon.style.display = 'none';
+            homepageRadioOffIcon.style.display = 'block';
+            homepageRadioBtn.title = 'Pause Jazz Radio';
+        } else {
+            homepageRadioBtn.classList.remove('playing');
+            homepageRadioIcon.style.display = 'block';
+            homepageRadioOffIcon.style.display = 'none';
+            homepageRadioBtn.title = 'Play Jazz Radio';
+        }
+    }
+}
+
+function updateRadioStatus(text) {
+    const radioStatusText = document.getElementById('radioStatusText');
+    if (radioStatusText) {
+        radioStatusText.textContent = text;
+    }
+}
+
+// ==================== LIGHTS TOGGLE ====================
+
+let lightsOn = true; // Start with lights on
+
+function initLightsToggle() {
+    const lightsToggleBtn = document.getElementById('lightsToggleBtn');
+    const lampAudio = document.getElementById('lampAudio');
+
+    if (!lightsToggleBtn) {
+        console.log('Lights toggle button not found');
+        return;
+    }
+
+    // Load saved state from localStorage
+    const savedLightsState = localStorage.getItem('lightsOn');
+    if (savedLightsState !== null) {
+        lightsOn = savedLightsState === 'true';
+    } else {
+        lightsOn = true; // Default to lights on
+    }
+
+    // Initialize the state
+    updateLightsState(lightsOn);
+
+    // Add click event listener
+    lightsToggleBtn.addEventListener('click', () => {
+        toggleLights(lampAudio);
+    });
+}
+
+function toggleLights(audioElement) {
+    lightsOn = !lightsOn;
+    updateLightsState(lightsOn);
+
+    // Play audio if available
+    if (audioElement) {
+        audioElement.volume = 0.25; // Set volume to 25%
+        audioElement.currentTime = 0; // Reset to start
+        audioElement.play().catch(error => {
+            console.log('Lamp audio play error:', error);
+        });
+    }
+
+    // Save state to localStorage
+    localStorage.setItem('lightsOn', lightsOn.toString());
+}
+
+function updateLightsState(on) {
+    const body = document.body;
+    const lightsToggleBtn = document.getElementById('lightsToggleBtn');
+    const lampIcon = document.getElementById('lampIcon');
+    const buttonText = lightsToggleBtn ? lightsToggleBtn.querySelector('.icon-btn-text') : null;
+
+    if (on) {
+        body.classList.remove('lights-off');
+        if (lightsToggleBtn) {
+            lightsToggleBtn.title = 'Turn Off Lights';
+        }
+        if (buttonText) {
+            buttonText.textContent = 'Turn Off Lights';
+        }
+        if (lampIcon) {
+            lampIcon.style.opacity = '1';
+        }
+    } else {
+        body.classList.add('lights-off');
+        if (lightsToggleBtn) {
+            lightsToggleBtn.title = 'Turn On Lights';
+        }
+        if (buttonText) {
+            buttonText.textContent = 'Turn On Lights';
+        }
+        if (lampIcon) {
+            lampIcon.style.opacity = '0.5';
+        }
+    }
+}
+
+function turnOnLightsSilently() {
+    // Turn on lights without playing audio
+    if (!lightsOn) {
+        lightsOn = true;
+        updateLightsState(lightsOn);
+        // Save state to localStorage
+        localStorage.setItem('lightsOn', 'true');
+    }
+}
 

@@ -15,6 +15,31 @@
 <body>
     <!-- Welcome Page -->
     <div id="welcomePage" class="welcome-page">
+        <!-- Floating Jazz Radio Button -->
+        <button id="homepageRadioBtn" class="homepage-radio-btn" title="Jazz Radio">
+            <svg id="homepageRadioIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="icon icon-tabler icons-tabler-outline icon-tabler-radio">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path
+                    d="M14 3l-9.371 3.749a1 1 0 0 0 -.629 .928v11.323a1 1 0 0 0 1 1h14a1 1 0 0 0 1 -1v-11a1 1 0 0 0 -1 -1h-14.5" />
+                <path d="M4 12h16" />
+                <path d="M7 12v-2" />
+                <path d="M17 16v.01" />
+                <path d="M13 16v.01" />
+            </svg>
+            <svg id="homepageRadioOffIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="icon icon-tabler icons-tabler-outline icon-tabler-radio-off" style="display: none;">
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                <path
+                    d="M14 3l-4.986 2m-2.875 1.15l-1.51 .604a1 1 0 0 0 -.629 .928v11.323a1 1 0 0 0 1 1h14a1 1 0 0 0 .708 -.294m.292 -3.706v-8a1 1 0 0 0 -1 -1h-8m-4 0h-2.5" />
+                <path d="M4 12h8m4 0h4" />
+                <path d="M7 12v-2" />
+                <path d="M13 16v.01" />
+                <path d="M3 3l18 18" />
+            </svg>
+        </button>
         <div class="welcome-content">
             <img src="graphics/deloosional-logo2.png" alt="Deloosional logo" class="welcome-logo">
             <h1 class="welcome-title" id="rotatingTitle">Where ideas connect like clues.</h1>
@@ -179,6 +204,50 @@
                     </span>
                     <span class="icon-btn-text">Download</span>
                 </button>
+            </div>
+            <div class="radio-player-section">
+                <button id="lightsToggleBtn" class="icon-btn" title="Turn On Lights">
+                    <span class="icon-btn-icon">
+                        <svg id="lampIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"
+                            fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-lamp">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M9 20h6" />
+                            <path d="M12 20v-8" />
+                            <path d="M5 12h14l-4 -8h-6z" />
+                        </svg>
+                    </span>
+                    <span class="icon-btn-text">Turn On Lights</span>
+                </button>
+                <button id="radioToggleBtn" class="icon-btn" title="Toggle Jazz Radio">
+                    <span class="icon-btn-icon">
+                        <svg id="radioIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round"
+                            class="icon icon-tabler icons-tabler-outline icon-tabler-radio">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path
+                                d="M14 3l-9.371 3.749a1 1 0 0 0 -.629 .928v11.323a1 1 0 0 0 1 1h14a1 1 0 0 0 1 -1v-11a1 1 0 0 0 -1 -1h-14.5" />
+                            <path d="M4 12h16" />
+                            <path d="M7 12v-2" />
+                            <path d="M17 16v.01" />
+                            <path d="M13 16v.01" />
+                        </svg>
+                        <svg id="radioOffIcon" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                            stroke-linecap="round" stroke-linejoin="round"
+                            class="icon icon-tabler icons-tabler-outline icon-tabler-radio-off" style="display: none;">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path
+                                d="M14 3l-4.986 2m-2.875 1.15l-1.51 .604a1 1 0 0 0 -.629 .928v11.323a1 1 0 0 0 1 1h14a1 1 0 0 0 .708 -.294m.292 -3.706v-8a1 1 0 0 0 -1 -1h-8m-4 0h-2.5" />
+                            <path d="M4 12h8m4 0h4" />
+                            <path d="M7 12v-2" />
+                            <path d="M13 16v.01" />
+                            <path d="M3 3l18 18" />
+                        </svg>
+                    </span>
+                    <span class="icon-btn-text">Jazz Radio</span>
+                </button>
                 <button id="backToWelcomeBtn" class="icon-btn icon-btn-warning" title="Homepage">
                     <span class="icon-btn-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -191,6 +260,8 @@
                     </span>
                     <span class="icon-btn-text">Homepage</span>
                 </button>
+                <audio id="radioAudio" preload="none"></audio>
+                <audio id="lampAudio" preload="auto" src="audios/desk-lamp.mp3"></audio>
             </div>
             <div class="sidebar-footer">
                 <img id="logo" src="graphics/deloosional-logo2.png" alt="Deloosional logo">
@@ -216,30 +287,32 @@
             <input type="text" id="noteTitle" placeholder="Enter note title..." autofocus>
             <label for="noteContent">Content:</label>
             <textarea id="noteContent" placeholder="Enter note content..."></textarea>
-            <label for="noteType">Type:</label>
-            <select id="noteType">
-                <option value="concept">🎯 Concept</option>
-                <option value="fact">📋 Fact</option>
-                <option value="question">❓ Question</option>
-                <option value="theory">🔬 Theory</option>
-            </select>
-            <label for="noteColor">Color:</label>
-            <div class="modal-color-actions">
-                <input type="color" id="noteColor" value="#ffeb3b" title="Choose note color">
-                <button id="createNoteBtn" class="modal-circular-btn" title="Create Note">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M12 5l0 14" />
-                        <path d="M5 12l14 0" />
-                    </svg>
-                </button>
-                <button id="updateNoteBtn" class="modal-circular-btn" style="display: none;" title="Save Note">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M5 12l5 5l10 -10" />
-                    </svg>
+            <div class="modal-type-color-container">
+                <div>
+                    <label for="noteType">Type:</label>
+                    <select id="noteType">
+                        <option value="concept">🎯 Concept</option>
+                        <option value="fact">📋 Fact</option>
+                        <option value="question">❓ Question</option>
+                        <option value="theory">🔬 Theory</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="noteColor">Color:</label>
+                    <input type="color" id="noteColor" value="#ffeb3b" title="Choose note color">
+                </div>
+            </div>
+            <div class="modal-button-container">
+                <button id="saveNoteBtn" class="modal-action-btn" title="Save">
+                    <span class="modal-action-btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="icon icon-tabler icons-tabler-outline icon-tabler-check">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M5 12l5 5l10 -10" />
+                        </svg>
+                    </span>
+                    <span class="modal-action-btn-text">Save</span>
                 </button>
             </div>
         </div>
@@ -253,7 +326,22 @@
             <label for="mediaUpload">Select Image:</label>
             <input type="file" id="mediaUpload" accept="image/*">
             <div id="mediaPreview" class="media-preview"></div>
-            <button id="createMediaBtn" class="btn btn-primary">Add Media</button>
+            <button id="createMediaBtn" class="modal-action-btn" title="Add Media">
+                <span class="modal-action-btn-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M15 8h.01" />
+                        <path d="M6 13l2.644 -2.644a1.21 1.21 0 0 1 1.712 0l3.644 3.644" />
+                        <path d="M13 13l1.644 -1.644a1.21 1.21 0 0 1 1.712 0l1.644 1.644" />
+                        <path d="M4 8v-2a2 2 0 0 1 2 -2h2" />
+                        <path d="M4 16v2a2 2 0 0 0 2 2h2" />
+                        <path d="M16 4h2a2 2 0 0 1 2 2v2" />
+                        <path d="M16 20h2a2 2 0 0 0 2 -2v-2" />
+                    </svg>
+                </span>
+                <span class="modal-action-btn-text">Add Media</span>
+            </button>
         </div>
     </div>
 

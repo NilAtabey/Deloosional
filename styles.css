@@ -119,9 +119,24 @@
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 8px;
-    padding: 16px;
+    gap: 6px;
+    padding: 14px;
     overflow-y: auto;
+}
+
+/* Radio Player Section - removed controls, button handles play/pause directly */
+.radio-player-section {
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 14px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+/* Radio player when sidebar is collapsed */
+.sidebar.collapsed .radio-player-section {
+    display: none;
 }
 
 .sidebar-footer {
@@ -206,7 +221,14 @@
 
 
 /* Ensure all buttons use Stack Sans Headline */
-button {
+button:not(.modal-action-btn) {
+    font-family: 'Stack Sans Headline', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+    font-weight: 700 !important;
+    font-size: 1.1em !important;
+}
+
+/* Modal action buttons have their own sizing */
+button.modal-action-btn {
     font-family: 'Stack Sans Headline', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
     font-weight: 700 !important;
     font-size: 1.1em !important;
@@ -214,7 +236,7 @@ button {
 
 /* Circular icon buttons - always expanded */
 .icon-btn {
-    height: 44px;
+    height: 40px;
     border-radius: 8px;
     border: none;
     background: #444;
@@ -233,7 +255,7 @@ button {
     overflow: visible;
     white-space: nowrap;
     position: relative;
-    gap: 12px;
+    gap: 10px;
     min-width: 100%;
     width: 100%;
     flex-shrink: 0;
@@ -248,8 +270,8 @@ button {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     color: inherit;
     position: relative;
     margin: 0;
@@ -257,8 +279,8 @@ button {
 }
 
 .icon-btn-icon svg {
-    width: 22.4px;
-    height: 22.4px;
+    width: 20px;
+    height: 20px;
     stroke: currentColor;
     fill: none;
     display: block;
@@ -325,10 +347,10 @@ button {
     padding: 0 12px;
     overflow: visible;
     white-space: nowrap;
-    gap: 12px;
+    gap: 10px;
     min-width: 100%;
     width: 100%;
-    height: 44px;
+    height: 40px;
     border-radius: 8px;
     margin: 0;
     flex-shrink: 0;
@@ -369,6 +391,18 @@ body {
     height: 100vh;
     width: 100%;
     max-width: 100%;
+    transition: filter 0.5s ease;
+}
+
+body.lights-off {
+    filter: brightness(0.15);
+}
+
+/* Keep logos at full brightness even when lights are off */
+body.lights-off .welcome-logo,
+body.lights-off #logo {
+    filter: brightness(6.67);
+    /* Counteracts body brightness(0.15) to restore normal brightness */
 }
 
 /* Legacy toggle switch styles (for modals if needed) */
@@ -881,14 +915,15 @@ body {
 }
 
 .modal-content {
-    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-    margin: 5% auto;
-    padding: 40px;
+    background: #2E2B28;
+    /* Match sidebar background */
+    margin: 10% auto;
+    padding: 20px;
     border: 2px solid #444;
-    border-radius: 20px;
+    border-radius: 8px;
     width: 90%;
-    max-width: 700px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+    max-width: 400px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     animation: slideDown 0.3s;
 }
 
@@ -909,130 +944,246 @@ body {
 .close-media {
     color: #aaa;
     float: right;
-    font-size: 28px;
+    font-size: 24px;
     font-weight: bold;
     cursor: pointer;
     line-height: 20px;
+    transition: color 0.2s ease;
 }
 
 .close:hover,
 .close-resize:hover,
 .close-media:hover {
-    color: #fff;
+    color: #F4EDE3;
 }
 
 .modal-content h2 {
-    margin-bottom: 30px;
-    color: #fff;
-    font-size: 1.8em;
-    font-weight: 600;
+    margin-bottom: 16px;
+    margin-top: 0;
+    color: #F4EDE3;
+    font-size: 1.2em;
+    font-weight: 700;
+    font-family: 'Stack Sans Headline', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 .modal-content label {
     display: block;
-    margin-top: 20px;
-    margin-bottom: 8px;
-    color: #fff;
-    font-weight: 500;
-    font-size: 1em;
+    margin-top: 12px;
+    margin-bottom: 6px;
+    color: #F4EDE3;
+    font-weight: 700;
+    font-size: 0.9em;
+    font-family: 'Stack Sans Headline', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.4;
 }
 
 .modal-content input,
 .modal-content textarea,
 .modal-content select {
     width: 100%;
-    padding: 12px 15px;
+    padding: 8px 12px;
     border: 2px solid #444;
-    border-radius: 10px;
-    background: #2c2c2c;
-    color: #fff;
-    font-size: 1em;
-    font-family: inherit;
+    border-radius: 6px;
+    background: #444;
+    color: #F4EDE3;
+    font-size: 0.9em;
+    font-family: 'Stack Sans Headline', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 700;
     transition: border-color 0.2s ease, background 0.2s ease;
+    line-height: 1.4;
+    vertical-align: middle;
+    box-sizing: border-box;
 }
 
 .modal-content input:focus,
 .modal-content textarea:focus,
 .modal-content select:focus {
     outline: none;
-    border-color: #4a90e2;
-    background: #333;
+    border-color: #353EBE;
+    background: #555;
 }
 
 .modal-content textarea {
-    min-height: 120px;
+    min-height: 80px;
     resize: vertical;
+    line-height: 1.5;
 }
 
-.modal-content #createNoteBtn,
-.modal-content #createMediaBtn,
-.modal-content #confirmResizeBtn {
-    margin-top: 30px;
-    width: 100%;
-    height: 50px;
-    border-radius: 50px;
-    background: #444;
-    color: #fff;
+/* Modal action buttons - styled to match sidebar icon-btn exactly */
+.modal-content .modal-action-btn,
+.modal-button-container .modal-action-btn {
+    height: 40px !important;
+    border-radius: 8px;
     border: none;
-    font-size: 1em;
-    font-weight: 500;
+    background: #444;
+    color: #F4EDE3;
+    font-size: 1.1em;
+    font-family: 'Stack Sans Headline', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+    font-weight: 700;
     cursor: pointer;
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
     transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 1.6px 3.2px rgba(0, 0, 0, 0.3);
+    padding: 0 16px !important;
+    overflow: visible !important;
+    white-space: nowrap;
+    position: relative;
+    gap: 8px !important;
+    width: auto !important;
+    min-width: auto !important;
+    max-width: fit-content !important;
+    flex-shrink: 0;
+    transform: translateZ(0);
+    will-change: transform;
+    backface-visibility: hidden;
+    margin: 0 auto !important;
 }
 
-.modal-content #createNoteBtn:hover,
-.modal-content #createMediaBtn:hover,
-.modal-content #confirmResizeBtn:hover {
-    background: #4a90e2;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+.modal-content .modal-action-btn:hover,
+.modal-button-container .modal-action-btn:hover {
+    background: #353EBE !important;
+    transform: translateZ(0) translateY(-1.6px);
+    box-shadow: 0 3.2px 6.4px rgba(0, 0, 0, 0.4);
+}
+
+.modal-action-btn .modal-action-btn-icon {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex-shrink: 0 !important;
+    width: 32px !important;
+    height: 32px !important;
+    color: inherit;
+    position: relative;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+.modal-action-btn .modal-action-btn-icon svg {
+    width: 20px !important;
+    height: 20px !important;
+    stroke: currentColor;
+    fill: none;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex-shrink: 0;
+    pointer-events: none;
+}
+
+.modal-action-btn .modal-action-btn-text {
+    font-size: 0.85em !important;
+    font-weight: 700;
+    font-family: 'Stack Sans Headline', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    white-space: nowrap;
+    display: block !important;
+    flex-shrink: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Ensure modal action buttons in modals have proper spacing when not in modal-color-actions */
+.modal-content>.modal-action-btn {
+    margin-top: 16px;
 }
 
 .modal-content input[type="color"] {
     width: 100%;
-    height: 60px;
+    height: 40px;
     border: 2px solid #444;
-    border-radius: 10px;
+    border-radius: 6px;
     cursor: pointer;
-    padding: 5px;
-    background: #2c2c2c;
+    padding: 2px;
+    background: #444;
+    box-sizing: border-box;
+}
+
+/* Container for Type and Color fields - side by side layout */
+.modal-type-color-container {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+    width: 100%;
+}
+
+.modal-type-color-container>div {
+    flex: 1;
+    min-width: 0;
+    /* Allows flex children to shrink below content size */
+}
+
+/* Ensure labels in this container stack normally */
+.modal-type-color-container label {
+    display: block;
+    margin-top: 0;
+    margin-bottom: 6px;
+}
+
+/* Remove extra top margin from labels in type-color container */
+.modal-type-color-container label:first-of-type {
+    margin-top: 0;
+}
+
+/* Ensure proper spacing for inputs/selects in side-by-side layout */
+.modal-type-color-container input,
+.modal-type-color-container select {
+    margin-bottom: 0;
+    /* Remove bottom margin to prevent extra space */
+}
+
+.modal-button-container {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 0;
+}
+
+.modal-button-container .modal-action-btn {
+    margin-top: 0;
 }
 
 .media-preview {
-    margin-top: 15px;
-    max-height: 250px;
+    margin-top: 12px;
+    max-height: 200px;
     overflow: hidden;
     border: 2px dashed #444;
-    border-radius: 10px;
-    padding: 15px;
+    border-radius: 6px;
+    padding: 12px;
     text-align: center;
-    background: #2c2c2c;
+    background: #444;
 }
 
 .media-preview img {
     max-width: 100%;
-    max-height: 220px;
-    border-radius: 10px;
+    max-height: 180px;
+    border-radius: 6px;
 }
 
 .modal-content input[type="file"] {
     width: 100%;
-    padding: 12px 15px;
+    padding: 8px 12px;
     border: 2px solid #444;
-    border-radius: 10px;
-    background: #2c2c2c;
-    color: #fff;
-    font-size: 1em;
-    font-family: inherit;
+    border-radius: 6px;
+    background: #444;
+    color: #F4EDE3;
+    font-size: 0.9em;
+    font-family: 'Stack Sans Headline', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-weight: 700;
     cursor: pointer;
     transition: border-color 0.2s ease, background 0.2s ease;
 }
 
 .modal-content input[type="file"]:focus {
     outline: none;
-    border-color: #4a90e2;
-    background: #333;
+    border-color: #353EBE;
+    background: #555;
 }
 
 .media-preview.empty {
@@ -1228,6 +1379,67 @@ body {
 }
 
 /* Welcome Page */
+/* Homepage Floating Radio Button */
+.homepage-radio-btn {
+    position: fixed;
+    top: 20px;
+    right: 32px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    border: none;
+    background: #444;
+    color: #F4EDE3;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.homepage-radio-btn:hover {
+    background: #555;
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+}
+
+.homepage-radio-btn:active {
+    transform: scale(0.95);
+}
+
+.homepage-radio-btn svg {
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+    fill: none;
+    transition: opacity 0.2s ease;
+}
+
+/* Pulsing animation when playing */
+.homepage-radio-btn.playing {
+    background: #444;
+    animation: radioPulse 2s ease-in-out infinite;
+}
+
+@keyframes radioPulse {
+
+    0%,
+    100% {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 0 rgba(68, 68, 68, 0.7);
+    }
+
+    50% {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 0 0 8px rgba(68, 68, 68, 0);
+    }
+}
+
+.homepage-radio-btn.playing:hover {
+    background: #555;
+}
+
 .welcome-page {
     position: fixed;
     top: 0;
