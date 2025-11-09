@@ -1967,8 +1967,13 @@ function getBoardName(boardId) {
     return `Board ${boardId}`;
 }
 
+// Case Closed Animation is handled in gavel-animation.js
+
 // screenshot/download functionality
 downloadBtn.addEventListener('click', async () => {
+    // Trigger the Case Closed animation
+    triggerCaseClosedAnimation();
+
     if (typeof html2canvas === 'undefined') {
         alert('Screenshot functionality is loading. Please try again in a moment.');
         return;
@@ -2080,6 +2085,9 @@ downloadBtn.addEventListener('click', async () => {
 
 // download board from welcome page
 async function downloadBoard(boardId, boardName) {
+    // Trigger the Case Closed animation
+    triggerCaseClosedAnimation();
+
     if (typeof html2canvas === 'undefined') {
         alert('Screenshot functionality is loading. Please try again in a moment.');
         return;

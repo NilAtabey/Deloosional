@@ -1555,3 +1555,262 @@ body {
     left: 0;
     display: flex;
 }
+
+/* Case Closed Animation Styles */
+.case-closed-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.case-closed-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.case-closed-overlay.fading-out {
+    opacity: 0;
+}
+
+.case-closed-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    min-height: 300px;
+}
+
+.gavel-setup {
+    position: relative;
+    width: 200px;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gavel-pad {
+    position: absolute;
+    width: 50px;
+    height: 10px;
+    background: linear-gradient(to bottom, #8B7355, #6B5D4F);
+    border-radius: 5px;
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.3),
+        inset 0 1px 2px rgba(255, 255, 255, 0.1);
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2;
+    opacity: 0;
+}
+
+.case-closed-overlay.active .gavel-pad {
+    opacity: 1;
+    animation: padAppear 0.3s ease-out forwards;
+}
+
+@keyframes padAppear {
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) scale(0.8);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
+    }
+}
+
+.gavel-container {
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    bottom: 39px;
+    left: 50%;
+    transform: translateX(calc(-50% + 103px)) rotate(-140deg);
+    transform-origin: 50% 100%;
+    opacity: 0;
+    will-change: transform, opacity;
+    z-index: 3;
+}
+
+.case-closed-overlay.active .gavel-container {
+    animation: gavelBang 0.55s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
+    transform-origin: 50% 100%;
+}
+
+.gavel-icon {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+}
+
+.case-closed-stamp {
+    position: relative;
+    transform: scale(0) rotate(-5deg);
+    opacity: 0;
+}
+
+.case-closed-overlay.active .case-closed-stamp {
+    animation: stampHit 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s forwards;
+}
+
+.stamp-text {
+    font-family: 'Stack Sans Headline', 'Arial Black', sans-serif;
+    font-size: 72px;
+    font-weight: 900;
+    color: #d32f2f;
+    text-shadow:
+        3px 3px 0px #000,
+        6px 6px 0px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(211, 47, 47, 0.5);
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    padding: 20px 40px;
+    border: 8px solid #d32f2f;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow:
+        0 0 0 4px #000,
+        inset 0 0 0 2px rgba(0, 0, 0, 0.1),
+        0 10px 30px rgba(0, 0, 0, 0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+.stamp-text::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(255, 255, 255, 0.4),
+            transparent);
+    animation: stampShine 0.6s ease-out 0.5s;
+}
+
+@keyframes gavelBang {
+    0% {
+        transform: translateX(calc(-50% + 103px)) rotate(-140deg);
+        opacity: 0;
+    }
+
+    2% {
+        opacity: 1;
+    }
+
+    10% {
+        transform: translateX(calc(-50% + 103px)) rotate(-140deg);
+    }
+
+    12% {
+        transform: translateX(calc(-50% + 103px)) rotate(-135deg);
+    }
+
+    35% {
+        transform: translateX(calc(-50% + 103px)) rotate(-20deg);
+    }
+
+    40% {
+        transform: translateX(calc(-50% + 103px)) rotate(-65deg);
+    }
+
+    42% {
+        transform: translateX(calc(-50% + 103px)) rotate(-91deg);
+    }
+
+    44% {
+        transform: translateX(calc(-50% + 103px)) rotate(-89deg);
+    }
+
+    46% {
+        transform: translateX(calc(-50% + 103px)) rotate(-90deg);
+    }
+
+    48% {
+        transform: translateX(calc(-50% + 103px)) rotate(-89.5deg);
+    }
+
+    50% {
+        transform: translateX(calc(-50% + 103px)) rotate(-90deg);
+    }
+
+    52% {
+        transform: translateX(calc(-50% + 103px)) rotate(-89.8deg);
+    }
+
+    54% {
+        transform: translateX(calc(-50% + 103px)) rotate(-90deg);
+    }
+
+    100% {
+        transform: translateX(calc(-50% + 103px)) rotate(-90deg);
+        opacity: 1;
+    }
+}
+
+@keyframes stampHit {
+    0% {
+        transform: scale(0) rotate(-5deg);
+        opacity: 0;
+    }
+
+    50% {
+        transform: scale(1.1) rotate(2deg);
+        opacity: 1;
+    }
+
+    70% {
+        transform: scale(0.98) rotate(-1deg);
+    }
+
+    100% {
+        transform: scale(1) rotate(0deg);
+        opacity: 1;
+    }
+}
+
+@keyframes stampShine {
+    0% {
+        left: -100%;
+    }
+
+    100% {
+        left: 100%;
+    }
+}
+
+/* Responsive adjustments for Case Closed animation */
+@media (max-width: 768px) {
+    .stamp-text {
+        font-size: 48px;
+        letter-spacing: 4px;
+        padding: 15px 30px;
+        border-width: 6px;
+    }
+
+    .gavel-container {
+        width: 80px;
+        height: 80px;
+    }
+
+    .case-closed-content {
+        gap: 30px;
+    }
+}
