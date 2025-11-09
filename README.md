@@ -28,99 +28,24 @@ The case isn't closed until all the clues connect.
 
 ### Technical Features
 
-#### Multi-Board State Management
-- Up to 6 concurrent investigation boards with independent state trees
-- Board preview generation via programmatic thumbnail rendering
-- localStorage-based persistence layer with automatic serialization/deserialization
-- Collision-free board deletion and creation with timestamp-based unique identifiers
-
-#### Canvas-Based Connection System
-- Real-time Bézier curve rendering for visual connections between elements
-- Connection point hit detection with proximity-based activation
-- Dynamic line color and stroke width with anti-aliasing
-- Toggle visibility for connection layer without state destruction
-- Implements custom line drawing algorithm with drag-to-connect interaction model
-
-#### Transform and Viewport Management
-- CSS transform-based zoom (0.25x-3x range) with origin preservation
-- Pan functionality via mousedown/mousemove event delegation
-- Transform matrix calculations for coordinate space conversion between viewport and board space
-- Smooth interpolation for zoom transitions with requestAnimationFrame optimization
-
-#### Drag-and-Drop Physics
-- Custom draggable implementation without external libraries
-- Collision detection for element boundaries within board constraints
-- Z-index management for overlay stacking during drag operations
-- Mouse offset calculation to maintain grab point consistency
-- Touch event normalization for mobile compatibility (pointer events)
-
-#### Inline Content Editing
-- ContentEditable API integration for live note text editing
-- Placeholder simulation via CSS pseudo-elements and empty state detection
-- Dynamic text contrast adjustment based on background luminance calculation
-- Auto-resize sticky notes based on content overflow with min/max constraints
-
-#### Media Annotation System
-- Client-side image upload with File Reader API
-- Canvas overlay for freehand highlighting and annotation
-- Persistent drawing state encoded as canvas data URLs
-- Color picker integration with real-time preview
-- Brush size controls with adjustable stroke width
-
-#### Audio Integration
-- Embedded jazz radio stream with play/pause state management
-- Sound effect synchronization for "Case Closed" animation (gavel impact at keyframe 42%)
-- Audio element preloading with lazy initialization
-- Fallback handling for autoplay policy restrictions
-
-#### Export Functionality
-- High-resolution board capture via html2canvas DOM traversal
-- Automatic scaling for export quality enhancement
-- PNG download generation with programmatic anchor element creation
-- Canvas-to-blob conversion for browser download trigger
-
-#### Visual Effects
-- "Lights Off" mode with CSS brightness filter applied to body element
-- Selective brightness compensation for logo elements
-- SVG-based gavel animation with multi-keyframe choreography
-- Stamp appearance with cubic-bezier easing and overshoot effect
-- Synchronized audio playback at animation impact point
+- **Multi-Board State Management**: Up to 6 concurrent boards with independent state trees, programmatic thumbnail generation, localStorage persistence with automatic serialization, and timestamp-based unique identifiers
+- **Canvas-Based Connection System**: Real-time Bézier curve rendering with proximity-based hit detection, dynamic line styling with anti-aliasing, toggleable visibility, and custom drag-to-connect interaction model
+- **Transform and Viewport Management**: CSS transform-based zoom (0.25x-3x) with origin preservation, mousedown/mousemove event delegation for panning, transform matrix coordinate conversion, and requestAnimationFrame-optimized smooth transitions
+- **Drag-and-Drop Physics**: Custom draggable implementation with collision detection, z-index management for overlay stacking, mouse offset calculations for grab point consistency, and pointer event normalization for mobile compatibility
+- **Inline Content Editing**: ContentEditable API integration with CSS pseudo-element placeholder simulation, dynamic text contrast based on luminance calculation, and auto-resize with min/max constraints
+- **Media Annotation System**: Client-side image upload via File Reader API with canvas overlay for freehand annotation, persistent drawing state as canvas data URLs, color picker with real-time preview, and adjustable brush controls
+- **Audio Integration**: Embedded jazz radio with play/pause state management, synchronized sound effects for animations (gavel impact at keyframe 42%), audio preloading with lazy initialization, and autoplay policy fallback handling
+- **Export Functionality**: High-resolution board capture via html2canvas DOM traversal with automatic scaling for quality enhancement and programmatic PNG download generation via canvas-to-blob conversion
+- **Visual Effects**: CSS brightness filter for "Lights Off" mode with selective logo compensation, SVG gavel animation with multi-keyframe choreography, cubic-bezier stamp appearance with overshoot effect, and synchronized audio playback
 
 ## Feature Breakdown
 
-### Board Management
-- **Multi-board system**: Create, rename, delete up to 6 independent boards
-- **Auto-generated previews**: Real-time board thumbnails for quick navigation
-- **Export to PNG**: High-resolution capture for sharing or archival
-
-### Sticky Notes
-- **Four semantic types**: Concept, Fact, Question, Theory (each with distinct visual styling)
-- **Custom color picker**: Full RGB spectrum with hex value support
-- **Inline editing**: Click-to-edit for title and content fields
-- **Drag-and-drop positioning**: Freeform placement anywhere on 2000x1500px board
-- **Resizable**: Bottom-right resize handle with proportional constraints
-
-### Media Attachments
-- **Image upload**: Support for common image formats (JPEG, PNG, GIF, WebP)
-- **Annotation tools**: Freehand drawing with customizable color and brush size
-- **Highlight mode**: Visual emphasis for key image regions
-- **Drag-and-drop**: Reposition media elements alongside notes
-
-### Red String Connections
-- **Visual linking**: Draw connections between any two elements (note-to-note, note-to-media, media-to-media)
-- **Connection points**: Four cardinal directions per element for optimal routing
-- **Toggle visibility**: Show/hide connection layer without data loss
-- **Bulk clear**: Remove all connections with confirmation dialog
-
-### Zoom and Pan
-- **Zoom range**: 0.25x to 3x with step increments of 0.25x
-- **Pan controls**: Click-and-drag board navigation
-- **Reset function**: Instant return to 1x zoom and centered viewport
-
-### Atmospheric Features
-- **Jazz radio**: Embedded audio stream toggle for ambiance
-- **Lights off mode**: Dim interface for focused late-night investigation sessions
-- **Case Closed animation**: Gavel bang with synchronized sound effect as visual feedback
+- **Board Management**: Create, rename, delete up to 6 independent boards with auto-generated previews and PNG export capability
+- **Sticky Notes**: Four semantic types (Concept, Fact, Question, Theory) with custom colors, inline editing, drag-and-drop positioning, and resize handles
+- **Media Attachments**: Image upload with annotation tools, freehand drawing, customizable highlighting, and drag-and-drop repositioning
+- **Red String Connections**: Visual linking between any elements with four-directional connection points, toggleable visibility, and bulk clear
+- **Zoom and Pan**: 0.25x-3x zoom range with click-and-drag navigation and instant reset to centered viewport
+- **Atmospheric Features**: Jazz radio toggle, lights-off mode for focused sessions, and case closed animation with synchronized sound effects
 
 ## Technical Requirements
 
@@ -169,12 +94,6 @@ Deloosional/
 **Canvas Rendering:** Connection lines redraw on every state change (note move, zoom, pan) using a clear-and-redraw pattern. Performance remains acceptable due to small element count (typical boards < 50 elements).
 
 **Coordinate Systems:** The application maintains two coordinate spaces—viewport coordinates (screen pixels) and board coordinates (corkboard pixels). Transform matrices convert between spaces for accurate click detection during zoom/pan operations.
-
-## Detective's Notes
-
-This isn't just another note-taking app—it's an investigation toolkit. Every feature serves the purpose of visual thinking: connections reveal patterns, colors categorize information, and spatial arrangement encodes importance.
-
-The mystery of complex topics becomes solvable when you can literally see the connections. Elementary, really.
 
 ## License
 
