@@ -1,59 +1,51 @@
-# 🕵️‍♀️ Deloosional — Solve Your Studies
+<div align="center">
+  <img src="graphics/deloosional-logo2.png" alt="Deloosional Logo" width="400">
+</div>
 
-*"Every topic's a mystery. Every clue's a concept. Connect the dots, detective."*
+# Deloosional
 
-## 🧩 About
+A web-based investigation board application that transforms note-taking into a detective-style experience. Built as a client-side application using vanilla JavaScript, featuring multiple boards, sticky notes, media attachments, and visual connections represented as red strings.
 
-Deloosional is a crime-board-style note website where notes come together like pieces to a puzzle. Create sticky notes, drag them around a corkboard, and connect them with red string lines—just like a detective investigating a case!
+## Project Overview
 
-## ✨ Features
+Deloosional is a single-page application that simulates a detective's crime board. Users can create multiple investigation boards, each containing sticky notes, images, and connections between items. The application uses localStorage for persistence, allowing users to maintain multiple boards without server-side infrastructure.
 
-- **Sticky Notes**: Create custom-colored notes for concepts, facts, questions, and theories
-- **Media Attachment**: Attach images to your notes for visual reference
-- **Drag & Drop**: Move notes freely around the corkboard
-- **Red String Connections**: Connect related ideas with visual lines
-- **Multiple Note Types**: Organize with different colored notes (concepts, facts, questions, theories)
-- **Inline Editing**: Edit note titles and content directly on the board
-- **Screenshot Download**: Download your entire board as a high-quality image
-- **Persistent Storage**: Your work is automatically saved to localStorage
-- **Beautiful UI**: Realistic corkboard texture with thumbtacks and shadows
+## Technical Architecture
 
-## 🚀 Getting Started
+### Core Technologies
 
-1. Clone or download this repository
-2. Open `index.html` in your web browser
-3. Start creating notes and connecting ideas!
+- **HTML5**: Semantic markup with canvas elements for line rendering
+- **CSS3**: Custom styling with CSS Grid, Flexbox, and CSS animations
+- **Vanilla JavaScript**: No frameworks or build tools required
+- **Canvas API**: Custom line drawing for connection visualization
+- **html2canvas**: Client-side screenshot generation for board exports
+- **localStorage API**: Persistent data storage for boards and metadata
+- **File API**: Image upload and base64 encoding for media attachments
 
-## 💻 Usage
+## Key Features
 
-- **Add Note**: Click the "➕ Add Note" button to create a new sticky note
-- **Customize Colors**: Use the color picker in the note creation modal to choose any color
-- **Attach Media**: Select an image file when creating a note to attach it
-- **Highlight on Images**: 
-  - Click the 🖍️ button on a note with an image to enable highlighter mode
-  - Choose your highlighter color and size
-  - Draw on the image with your mouse
-  - Click 🗑️ to clear all highlights
-- **Move Notes**: Click and drag notes by their header (the area with the thumbtack)
-- **Edit Notes**: Click on the title or content to edit inline
-- **Connect Notes**: Click the 🔗 button on a note, then click another note to connect them
-- **Delete Notes**: Click the 🗑️ button that appears when hovering over a note
-- **Toggle Lines**: Use the "🔗 Toggle Lines" button to show/hide connections
-- **Download Board**: Click "📸 Download Board" to save your entire board as an image
-- **Clear All**: Remove all notes and connections (use with caution!)
+- **Multi-Board System**: Up to 6 independent boards with preview thumbnails, rename, delete, and download capabilities
+- **Sticky Notes**: Four note types (Concept, Fact, Question, Theory) with custom colors, inline editing, drag-and-drop, and resizing
+- **Media Attachments**: Image uploads with base64 storage, resizing, and canvas-based annotation/highlighting system
+- **Connection System**: Red string lines connecting notes and media with four anchor points, toggleable visibility, and automatic cleanup
+- **Zoom and Pan**: 0.25x to 3x zoom range with mouse drag panning and coordinate transformation
+- **Board Export**: PNG export using html2canvas with high-resolution rendering
+- **Case Closed Animation**: Custom SVG animation with sound effects triggered on board clear
+- **Welcome Page**: Board management interface with rotating animated titles and preview generation
+- **Sidebar Navigation**: Collapsible sidebar with persistent state and keyboard shortcuts
 
-## 🛠️ Tech Stack
+## Implementation
 
-- Pure HTML, CSS, and JavaScript
-- No backend required
-- Canvas API for drawing connection lines and highlighter marks
-- html2canvas library for screenshot functionality
-- localStorage for data persistence
+Data is persisted in localStorage with automatic saving on all modifications. The application uses Canvas API for line rendering, CSS transforms for zoom/pan, and html2canvas for board exports. All rendering is client-side with no backend required.
 
-## 📝 License
+## Requirements
+
+- Modern browser with ES6+ support, Canvas API, localStorage, and File API
+- Stack Sans Headline font (optional, falls back to system fonts)
+- html2canvas library (loaded via CDN)
+
+## License
 
 MIT License - See LICENSE file for details
 
----
-
-*Because every genius sounds a little Deloosional.*
+Copyright (c) 2025 Beray Nil Atabey
