@@ -1,16 +1,8 @@
-<div align="center">
-  <img src="graphics/deloosional-logo2.png" alt="Deloosional Logo" width="400">
-</div>
-
-A detective-themed investigation board application that transforms studying into an interactive investigation. No frameworks, no backend, no dependencies beyond the browser-just pure client-side code solving the case of ineffective note-taking.
-
 ![Homepage](app-screenshots/image0.png)
 
 ## Project Overview
 
-Deloosional is a hackathon project that reimagines the traditional corkboard investigation aesthetic as a digital learning tool. Users create visual investigation boards with sticky notes, media attachments, and connection strings to map relationships between concepts. The application leverages vanilla JavaScript and modern browser APIs to deliver a zero-build, framework-free experience.
-
-The case isn't closed until all the clues connect.
+Deloosional is a detective-themed investigation board application that reimagines the traditional corkboard investigation aesthetic as a digital learning tool. Users create visual investigation boards with sticky notes, media attachments, and connection strings to map relationships between concepts. The application leverages vanilla JavaScript and modern browser APIs to deliver a zero-build, framework-free experience.
 
 ![Investigation Board Example](app-screenshots/image2.png)
 
