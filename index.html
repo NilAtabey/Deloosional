@@ -4,11 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Deloosional — Solve Your Studies</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap"
-        rel="stylesheet">
+    <title>Deloosional</title>
+    <!-- Stack Sans Headline font is loaded via @font-face in styles.css -->
+    <!-- To use this font, download font files from https://fossfonts.com/stack-sans-headline -->
+    <!-- and place them in a 'fonts' directory, then update the @font-face paths in styles.css -->
     <link rel="stylesheet" href="styles.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
@@ -20,6 +19,7 @@
             <img src="graphics/deloosional-logo2.png" alt="Deloosional logo" class="welcome-logo">
             <h1 class="welcome-title" id="rotatingTitle">Where ideas connect like clues.</h1>
             <p class="welcome-subtitle">Every topic is a mystery and every clue is a concept.<br>Connect the dots, get
+                lost, get loose, get
                 <span class="deloosional-styled">de<span class="deloosional-red">loos</span>sional</span>.
             </p>
 
@@ -44,34 +44,22 @@
 
     <!-- Board Editor (hidden by default) -->
     <div id="boardEditor" class="board-editor" style="display: none;">
-        <div class="board-container">
-            <div id="zoomContainer" class="zoom-container">
-                <div id="corkboard" class="corkboard">
-                    <canvas id="lineCanvas"></canvas>
-                    <div id="notesContainer" class="notes-container"></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Bottom bar -->
-        <div class="bottom-bar">
-            <div class="bottom-bar-left">
-                <img id="logo" src="graphics/deloosional-logo2.png" alt="Deloosional logo">
-            </div>
-            <div class="bottom-bar-right">
-                <button id="backToWelcomeBtn" class="icon-btn" title="Homepage">
-                    <span class="icon-btn-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                            <path d="M5 12l14 0" />
-                            <path d="M5 12l6 6" />
-                            <path d="M5 12l6 -6" />
-                        </svg>
-                    </span>
-                    <span class="icon-btn-text">Homepage</span>
+        <!-- Left Sidebar -->
+        <div id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <button id="sidebarToggleBtn" class="sidebar-toggle-btn" title="Toggle Sidebar">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="icon icon-tabler icons-tabler-outline icon-tabler-layout-sidebar-left-collapse">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" />
+                        <path d="M9 4v16" />
+                        <path d="M15 10l-2 2l2 2" />
+                    </svg>
                 </button>
-                <button id="addNoteBtn" class="icon-btn icon-btn-zoom" title="Add Note">
+            </div>
+            <div class="sidebar-content">
+                <button id="addNoteBtn" class="icon-btn" title="Add Note">
                     <span class="icon-btn-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -82,8 +70,9 @@
                                 d="M13 20v-6a1 1 0 0 1 1 -1h6v-7a2 2 0 0 0 -2 -2h-12a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7" />
                         </svg>
                     </span>
+                    <span class="icon-btn-text">Add Note</span>
                 </button>
-                <button id="addMediaBtn" class="icon-btn icon-btn-zoom" title="Add Media">
+                <button id="addMediaBtn" class="icon-btn" title="Add Media">
                     <span class="icon-btn-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -97,8 +86,9 @@
                             <path d="M16 20h2a2 2 0 0 0 2 -2v-2" />
                         </svg>
                     </span>
+                    <span class="icon-btn-text">Add Media</span>
                 </button>
-                <button id="zoomInBtn" class="icon-btn icon-btn-zoom" title="Zoom In">
+                <button id="zoomInBtn" class="icon-btn" title="Zoom In">
                     <span class="icon-btn-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -109,8 +99,9 @@
                             <path d="M7 10l6 0" />
                         </svg>
                     </span>
+                    <span class="icon-btn-text">Zoom In</span>
                 </button>
-                <button id="zoomOutBtn" class="icon-btn icon-btn-zoom" title="Zoom Out">
+                <button id="zoomOutBtn" class="icon-btn" title="Zoom Out">
                     <span class="icon-btn-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -120,8 +111,9 @@
                             <path d="M7 10l6 0" />
                         </svg>
                     </span>
+                    <span class="icon-btn-text">Zoom Out</span>
                 </button>
-                <button id="resetZoomBtn" class="icon-btn icon-btn-zoom" title="Reset Zoom">
+                <button id="resetZoomBtn" class="icon-btn" title="Reset Zoom">
                     <span class="icon-btn-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -133,6 +125,7 @@
                             <path d="M21 21l-6 -6" />
                         </svg>
                     </span>
+                    <span class="icon-btn-text">Reset Zoom</span>
                 </button>
                 <label class="icon-btn toggle-icon-btn" title="Toggle Strings">
                     <input type="checkbox" id="toggleLinesSwitch" checked style="display: none;">
@@ -186,6 +179,29 @@
                     </span>
                     <span class="icon-btn-text">Download</span>
                 </button>
+                <button id="backToWelcomeBtn" class="icon-btn icon-btn-warning" title="Homepage">
+                    <span class="icon-btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M5 12l14 0" />
+                            <path d="M5 12l6 6" />
+                            <path d="M5 12l6 -6" />
+                        </svg>
+                    </span>
+                    <span class="icon-btn-text">Homepage</span>
+                </button>
+            </div>
+            <div class="sidebar-footer">
+                <img id="logo" src="graphics/deloosional-logo2.png" alt="Deloosional logo">
+            </div>
+        </div>
+        <div class="board-container">
+            <div id="zoomContainer" class="zoom-container">
+                <div id="corkboard" class="corkboard">
+                    <canvas id="lineCanvas"></canvas>
+                    <div id="notesContainer" class="notes-container"></div>
+                </div>
             </div>
         </div>
     </div>

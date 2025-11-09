@@ -47,9 +47,28 @@ const boardsList = document.getElementById('boardsList');
 const createNewBoardBtn = document.getElementById('createNewBoardBtn');
 const backToWelcomeBtn = document.getElementById('backToWelcomeBtn');
 const logo = document.getElementById('logo');
+const sidebar = document.getElementById('sidebar');
+const sidebarToggleBtn = document.getElementById('sidebarToggleBtn');
 
 let currentMediaFile = null;
 let mediaItems = [];
+
+// Helper functions for item management
+function getItem(id) {
+    return notes.find(n => n.id === id) || mediaItems.find(m => m.id === id);
+}
+
+function getItemElement(id) {
+    return document.getElementById(`note-${id}`) || document.getElementById(`media-${id}`);
+}
+
+function isMediaItem(id) {
+    return mediaItems.some(m => m.id === id);
+}
+
+function getItemElementId(id) {
+    return isMediaItem(id) ? `media-${id}` : `note-${id}`;
+}
 
 // initialize canvas
 function initCanvas() {
@@ -85,17 +104,28 @@ function setZoom(zoom, centerX = null, centerY = null) {
     const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
 
     if (centerX !== null && centerY !== null && boardContainer) {
-        // zoom towards a specific point
+        // zoom towards a specific point (mouse cursor position)
         const containerRect = boardContainer.getBoundingClientRect();
 
-        const relativeX = centerX - containerRect.left;
-        const relativeY = centerY - containerRect.top;
+        // Get viewport center (where zoom container origin is located)
+        const viewportCenterX = containerRect.left + containerRect.width / 2;
+        const viewportCenterY = containerRect.top + containerRect.height / 2;
 
-        const worldX = (relativeX - panX) / currentZoom;
-        const worldY = (relativeY - panY) / currentZoom;
+        // Convert mouse position to coordinates relative to viewport center
+        const mouseX = centerX - viewportCenterX;
+        const mouseY = centerY - viewportCenterY;
 
-        panX = relativeX - worldX * newZoom;
-        panY = relativeY - worldY * newZoom;
+        // Calculate the world coordinate (point on the board) that the mouse is pointing to
+        // Before zoom: mouseX = worldX * currentZoom + panX
+        // Therefore: worldX = (mouseX - panX) / currentZoom
+        const worldX = (mouseX - panX) / currentZoom;
+        const worldY = (mouseY - panY) / currentZoom;
+
+        // After zoom, adjust pan so the same world point is under the mouse
+        // mouseX = worldX * newZoom + newPanX
+        // Therefore: newPanX = mouseX - worldX * newZoom
+        panX = mouseX - worldX * newZoom;
+        panY = mouseY - worldY * newZoom;
     }
 
     currentZoom = newZoom;
@@ -150,12 +180,15 @@ function initZoom() {
     resetZoom();
 }
 
-// zoom buttons
+// zoom buttons - zoom toward viewport center
 if (zoomInBtn) {
     zoomInBtn.addEventListener('click', () => {
         if (!boardContainer) return;
         const rect = boardContainer.getBoundingClientRect();
-        setZoom(currentZoom + ZOOM_STEP, rect.width / 2, rect.height / 2);
+        // Zoom toward the center of the viewport
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        setZoom(currentZoom + ZOOM_STEP, centerX, centerY);
     });
 }
 
@@ -163,7 +196,10 @@ if (zoomOutBtn) {
     zoomOutBtn.addEventListener('click', () => {
         if (!boardContainer) return;
         const rect = boardContainer.getBoundingClientRect();
-        setZoom(currentZoom - ZOOM_STEP, rect.width / 2, rect.height / 2);
+        // Zoom toward the center of the viewport
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        setZoom(currentZoom - ZOOM_STEP, centerX, centerY);
     });
 }
 
@@ -518,10 +554,10 @@ function attachMediaListeners(mediaElement, mediaItem) {
 }
 
 function updateMediaPosition(mediaId) {
-    const mediaItem = mediaItems.find(m => m.id === mediaId);
+    const mediaItem = getItem(mediaId);
     if (!mediaItem) return;
 
-    const mediaElement = document.getElementById(`media-${mediaId}`);
+    const mediaElement = getItemElement(mediaId);
     if (mediaElement) {
         mediaElement.style.left = mediaItem.x + 'px';
         mediaElement.style.top = mediaItem.y + 'px';
@@ -545,7 +581,7 @@ function deleteMediaItem(mediaId) {
         mediaItems = mediaItems.filter(m => m.id !== mediaId);
 
         // remove DOM element
-        const mediaElement = document.getElementById(`media-${mediaId}`);
+        const mediaElement = getItemElement(mediaId);
         if (mediaElement) {
             mediaElement.remove();
         }
@@ -624,7 +660,7 @@ function createNote(title, content, type, color, x, y) {
 // render a note on the board
 function renderNote(note) {
     // remove existing note if re-rendering
-    const existingNote = document.getElementById(`note-${note.id}`);
+    const existingNote = getItemElement(note.id);
     if (existingNote) {
         existingNote.remove();
     }
@@ -886,19 +922,14 @@ function startDrag(itemId, e, isMedia = false) {
     if (isDragging) return; // prevent multiple drags
 
     isDragging = true;
-    if (isMedia) {
-        currentNote = mediaItems.find(m => m.id === itemId);
-    } else {
-        currentNote = notes.find(n => n.id === itemId);
-    }
+    currentNote = getItem(itemId);
 
     if (!currentNote) {
         isDragging = false;
         return;
     }
 
-    const elementId = isMedia ? `media-${itemId}` : `note-${itemId}`;
-    const itemElement = document.getElementById(elementId);
+    const itemElement = getItemElement(itemId);
     if (!itemElement) {
         isDragging = false;
         return;
@@ -926,8 +957,7 @@ function onDrag(e) {
     const y = boardPos.y - dragOffset.y;
 
     // constrain to board bounds
-    const elementId = currentNote.type === 'media' ? `media-${currentNote.id}` : `note-${currentNote.id}`;
-    const itemElement = document.getElementById(elementId);
+    const itemElement = getItemElement(currentNote.id);
     if (!itemElement) return;
 
     const maxX = corkboard.offsetWidth - itemElement.offsetWidth;
@@ -947,8 +977,7 @@ function onDrag(e) {
 
 function stopDrag(e) {
     if (isDragging && currentNote) {
-        const elementId = currentNote.type === 'media' ? `media-${currentNote.id}` : `note-${currentNote.id}`;
-        const itemElement = document.getElementById(elementId);
+        const itemElement = getItemElement(currentNote.id);
         if (itemElement) {
             itemElement.classList.remove('dragging');
         }
@@ -965,10 +994,10 @@ function stopDrag(e) {
 }
 
 function updateNotePosition(noteId) {
-    const note = notes.find(n => n.id === noteId);
+    const note = getItem(noteId);
     if (!note) return;
 
-    const noteElement = document.getElementById(`note-${noteId}`);
+    const noteElement = getItemElement(noteId);
     if (noteElement) {
         noteElement.style.left = note.x + 'px';
         noteElement.style.top = note.y + 'px';
@@ -993,13 +1022,13 @@ function startResize(noteId, e) {
     if (isResizing || isDragging || isConnecting) return;
 
     isResizing = true;
-    resizeNote = notes.find(n => n.id === noteId);
+    resizeNote = getItem(noteId);
     if (!resizeNote) {
         isResizing = false;
         return;
     }
 
-    const noteElement = document.getElementById(`note-${noteId}`);
+    const noteElement = getItemElement(noteId);
     if (!noteElement) {
         isResizing = false;
         return;
@@ -1035,7 +1064,7 @@ function onResize(e) {
     resizeNote.width = newWidth;
     resizeNote.height = newHeight;
 
-    const noteElement = document.getElementById(`note-${resizeNote.id}`);
+    const noteElement = getItemElement(resizeNote.id);
     if (noteElement) {
         noteElement.style.width = newWidth + 'px';
         noteElement.style.height = newHeight + 'px';
@@ -1076,7 +1105,7 @@ function onResize(e) {
 
 function stopResize(e) {
     if (isResizing && resizeNote) {
-        const noteElement = document.getElementById(`note-${resizeNote.id}`);
+        const noteElement = getItemElement(resizeNote.id);
         if (noteElement) {
             noteElement.classList.remove('resizing');
 
@@ -1127,13 +1156,13 @@ function startMediaResize(mediaId, e) {
     if (isMediaResizing || isResizing || isDragging || isConnecting) return;
 
     isMediaResizing = true;
-    resizeMediaItem = mediaItems.find(m => m.id === mediaId);
+    resizeMediaItem = getItem(mediaId);
     if (!resizeMediaItem) {
         isMediaResizing = false;
         return;
     }
 
-    const mediaElement = document.getElementById(`media-${mediaId}`);
+    const mediaElement = getItemElement(mediaId);
     if (!mediaElement) {
         isMediaResizing = false;
         return;
@@ -1194,7 +1223,7 @@ function onMediaResize(e) {
     resizeMediaItem.width = newWidth;
     resizeMediaItem.height = newHeight;
 
-    const mediaElement = document.getElementById(`media-${resizeMediaItem.id}`);
+    const mediaElement = getItemElement(resizeMediaItem.id);
     if (mediaElement) {
         mediaElement.style.width = newWidth + 'px';
         mediaElement.style.height = newHeight + 'px';
@@ -1214,7 +1243,7 @@ function onMediaResize(e) {
 
 function stopMediaResize(e) {
     if (isMediaResizing && resizeMediaItem) {
-        const mediaElement = document.getElementById(`media-${resizeMediaItem.id}`);
+        const mediaElement = getItemElement(resizeMediaItem.id);
         if (mediaElement) {
             mediaElement.classList.remove('resizing');
         }
@@ -1249,7 +1278,7 @@ function startConnection(itemId, isMedia = false, position = 'top') {
 
     // add handlers for notes
     notes.forEach(note => {
-        const noteElement = document.getElementById(`note-${note.id}`);
+        const noteElement = getItemElement(note.id);
         if (noteElement) {
             noteElement.classList.add('connecting');
             // add click handler to complete connection (skip the source item)
@@ -1259,7 +1288,7 @@ function startConnection(itemId, isMedia = false, position = 'top') {
 
     // add handlers for media items
     mediaItems.forEach(mediaItem => {
-        const mediaElement = document.getElementById(`media-${mediaItem.id}`);
+        const mediaElement = getItemElement(mediaItem.id);
         if (mediaElement) {
             mediaElement.classList.add('connecting');
             // only allow connections via connection points, not clicking anywhere on the media
@@ -1267,16 +1296,10 @@ function startConnection(itemId, isMedia = false, position = 'top') {
     });
 
     // calculate initial start point for preview
-    let startItem;
-    if (connectionStart.isMedia) {
-        startItem = mediaItems.find(m => m.id === connectionStart.noteId);
-    } else {
-        startItem = notes.find(n => n.id === connectionStart.noteId);
-    }
+    const startItem = getItem(connectionStart.noteId);
 
     if (startItem) {
-        const startElementId = connectionStart.isMedia ? `media-${startItem.id}` : `note-${startItem.id}`;
-        const startElement = document.getElementById(startElementId);
+        const startElement = getItemElement(startItem.id);
         if (startElement) {
             // set initial preview position to start point
             if (connectionStart.position === 'top') {
@@ -1337,13 +1360,13 @@ function startConnection(itemId, isMedia = false, position = 'top') {
                 isConnecting = false;
                 connectionStart = null;
                 notes.forEach(note => {
-                    const noteElement = document.getElementById(`note-${note.id}`);
+                    const noteElement = getItemElement(note.id);
                     if (noteElement) {
                         noteElement.classList.remove('connecting');
                     }
                 });
                 mediaItems.forEach(mediaItem => {
-                    const mediaElement = document.getElementById(`media-${mediaItem.id}`);
+                    const mediaElement = getItemElement(mediaItem.id);
                     if (mediaElement) {
                         mediaElement.classList.remove('connecting');
                     }
@@ -1370,13 +1393,13 @@ function startConnection(itemId, isMedia = false, position = 'top') {
             isConnecting = false;
             connectionStart = null;
             notes.forEach(note => {
-                const noteElement = document.getElementById(`note-${note.id}`);
+                const noteElement = getItemElement(note.id);
                 if (noteElement) {
                     noteElement.classList.remove('connecting');
                 }
             });
             mediaItems.forEach(mediaItem => {
-                const mediaElement = document.getElementById(`media-${mediaItem.id}`);
+                const mediaElement = getItemElement(mediaItem.id);
                 if (mediaElement) {
                     mediaElement.classList.remove('connecting');
                 }
@@ -1401,7 +1424,7 @@ function startConnection(itemId, isMedia = false, position = 'top') {
 
 function cleanupConnectionHandlers() {
     notes.forEach(note => {
-        const noteElement = document.getElementById(`note-${note.id}`);
+        const noteElement = getItemElement(note.id);
         if (noteElement) {
             const handler = connectionHandlers.get(note.id);
             if (handler) {
@@ -1410,7 +1433,7 @@ function cleanupConnectionHandlers() {
         }
     });
     mediaItems.forEach(mediaItem => {
-        const mediaElement = document.getElementById(`media-${mediaItem.id}`);
+        const mediaElement = getItemElement(mediaItem.id);
         if (mediaElement) {
             const handler = connectionHandlers.get(mediaItem.id);
             if (handler) {
@@ -1508,25 +1531,14 @@ function redrawLines() {
     // draw existing connections
     connections.forEach(connection => {
         // find items (could be notes or media)
-        let fromItem = notes.find(n => n.id === connection.from);
-        let toItem = notes.find(n => n.id === connection.to);
-
-        if (!fromItem) {
-            fromItem = mediaItems.find(m => m.id === connection.from);
-        }
-        if (!toItem) {
-            toItem = mediaItems.find(m => m.id === connection.to);
-        }
+        const fromItem = getItem(connection.from);
+        const toItem = getItem(connection.to);
 
         if (!fromItem || !toItem) return;
 
-        // determine if items are media by checking if they're in mediaItems array
-        const fromIsMedia = mediaItems.some(m => m.id === connection.from);
-        const toIsMedia = mediaItems.some(m => m.id === connection.to);
-        const fromElementId = fromIsMedia ? `media-${fromItem.id}` : `note-${fromItem.id}`;
-        const toElementId = toIsMedia ? `media-${toItem.id}` : `note-${toItem.id}`;
-        const fromElement = document.getElementById(fromElementId);
-        const toElement = document.getElementById(toElementId);
+        // get elements using helper functions
+        const fromElement = getItemElement(fromItem.id);
+        const toElement = getItemElement(toItem.id);
 
         if (!fromElement || !toElement) return;
 
@@ -1578,16 +1590,10 @@ function redrawLines() {
     // draw preview line if connecting
     if (isConnecting && connectionStart) {
         // find the start item
-        let startItem;
-        if (connectionStart.isMedia) {
-            startItem = mediaItems.find(m => m.id === connectionStart.noteId);
-        } else {
-            startItem = notes.find(n => n.id === connectionStart.noteId);
-        }
+        const startItem = getItem(connectionStart.noteId);
 
         if (startItem) {
-            const startElementId = connectionStart.isMedia ? `media-${startItem.id}` : `note-${startItem.id}`;
-            const startElement = document.getElementById(startElementId);
+            const startElement = getItemElement(startItem.id);
 
             if (startElement) {
                 // calculate start point
@@ -1674,17 +1680,11 @@ const highlighterState = new Map(); // store highlighter state per note
 const highlighterSaveTimeouts = new Map(); // store save timeouts per note
 
 function initializeHighlighter(itemId, isMedia = false) {
-    let item;
-    if (isMedia) {
-        item = mediaItems.find(m => m.id === itemId);
-    } else {
-        item = notes.find(n => n.id === itemId);
-    }
+    const item = getItem(itemId);
 
     if (!item || !item.mediaDataUrl) return;
 
-    const elementId = isMedia ? `media-${itemId}` : `note-${itemId}`;
-    const itemElement = document.getElementById(elementId);
+    const itemElement = getItemElement(itemId);
     if (!itemElement) return;
 
     const mediaContainer = itemElement.querySelector('.note-media-container');
@@ -1693,7 +1693,7 @@ function initializeHighlighter(itemId, isMedia = false) {
 
     if (!canvas || !img) return;
 
-    const selector = isMedia ? `[data-media-id="${itemId}"]` : `[data-note-id="${itemId}"]`;
+    const selector = isMediaItem(itemId) ? `[data-media-id="${itemId}"]` : `[data-note-id="${itemId}"]`;
     const toggleBtn = itemElement.querySelector(`.highlighter-toggle-btn${selector}`);
     const colorInput = itemElement.querySelector(`.highlighter-color${selector}`);
     const sizeInput = itemElement.querySelector(`.highlighter-size${selector}`);
@@ -1917,12 +1917,7 @@ function saveHighlighterData(itemId, isMedia = false) {
 }
 
 function redrawHighlighter(itemId, ctx, width, height, isMedia = false) {
-    let item;
-    if (isMedia) {
-        item = mediaItems.find(m => m.id === itemId);
-    } else {
-        item = notes.find(n => n.id === itemId);
-    }
+    const item = getItem(itemId);
     if (!item || !item.highlighterData) return;
 
     const img = new Image();
@@ -1936,10 +1931,10 @@ function redrawHighlighter(itemId, ctx, width, height, isMedia = false) {
 
 // initialize highlighter after note is rendered and image is loaded
 function initializeHighlighterAfterLoad(noteId) {
-    const note = notes.find(n => n.id === noteId);
+    const note = getItem(noteId);
     if (!note || !note.mediaDataUrl) return;
 
-    const noteElement = document.getElementById(`note-${note.id}`);
+    const noteElement = getItemElement(noteId);
     if (!noteElement) return;
 
     const img = noteElement.querySelector('.note-media-image');
@@ -1955,6 +1950,23 @@ function initializeHighlighterAfterLoad(noteId) {
     }
 }
 
+// Helper function to get board name from currentBoardId
+function getBoardName(boardId) {
+    if (!boardId) return 'board';
+
+    try {
+        const metadata = localStorage.getItem(`deloosional-board-metadata-${boardId}`);
+        if (metadata) {
+            const meta = JSON.parse(metadata);
+            return meta.name || `Board ${boardId}`;
+        }
+    } catch (e) {
+        console.error('Failed to get board name:', e);
+    }
+
+    return `Board ${boardId}`;
+}
+
 // screenshot/download functionality
 downloadBtn.addEventListener('click', async () => {
     if (typeof html2canvas === 'undefined') {
@@ -1962,28 +1974,244 @@ downloadBtn.addEventListener('click', async () => {
         return;
     }
 
+    // Save current transform state
+    let savedTransform = '';
+    let savedPosition = '';
+    let savedTop = '';
+    let savedLeft = '';
+
     try {
-        // capture the corkboard
+        // Wait for fonts to load
+        await document.fonts.ready;
+
+        // Wait for all images in the board to load
+        const images = corkboard.querySelectorAll('img');
+        const imagePromises = Array.from(images).map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = resolve; // Continue even if image fails
+                setTimeout(resolve, 2000); // Timeout after 2 seconds
+            });
+        });
+        await Promise.all(imagePromises);
+
+        // Ensure lines are drawn
+        redrawLines();
+
+        // Additional wait to ensure everything is rendered
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Save current transform state before modifying
+        if (zoomContainer) {
+            savedTransform = zoomContainer.style.transform || '';
+            // Get computed styles for position properties (they're in CSS, not inline)
+            const computedStyle = window.getComputedStyle(zoomContainer);
+            savedPosition = computedStyle.position;
+            savedTop = computedStyle.top;
+            savedLeft = computedStyle.left;
+        }
+
+        // Temporarily remove ALL transforms and reset positioning
+        if (zoomContainer) {
+            zoomContainer.style.transform = 'none';
+            zoomContainer.style.position = 'static';
+            zoomContainer.style.top = '0';
+            zoomContainer.style.left = '0';
+        }
+
+        // Small delay to ensure transform removal is applied
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Capture the corkboard at exact dimensions without transforms
         const canvas = await html2canvas(corkboard, {
-            backgroundColor: null,
+            backgroundColor: '#d4a574',
             scale: 2,
             logging: false,
             useCORS: true,
             allowTaint: true,
-            windowWidth: corkboard.scrollWidth,
-            windowHeight: corkboard.scrollHeight
+            x: 0,
+            y: 0,
+            width: 2000,
+            height: 1500,
+            windowWidth: 2000,
+            windowHeight: 1500,
+            foreignObjectRendering: false,
+            imageTimeout: 0,
+            removeContainer: true
         });
 
-        // download as image
+        // Restore transforms immediately after capture
+        if (zoomContainer) {
+            zoomContainer.style.transform = savedTransform;
+            // Restore position properties - set to empty to let CSS take over
+            zoomContainer.style.position = '';
+            zoomContainer.style.top = '';
+            zoomContainer.style.left = '';
+            // Re-apply the transform to ensure zoom state is correct
+            updateZoomTransform();
+        }
+
+        // Get board name for filename
+        const boardName = getBoardName(currentBoardId);
+        const sanitizedName = boardName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+
+        // Download as image
         const link = document.createElement('a');
-        link.download = `deloosional-board-${new Date().toISOString().split('T')[0]}.png`;
+        link.download = `deloosional-${sanitizedName}-${new Date().toISOString().split('T')[0]}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
     } catch (error) {
         console.error('Error capturing screenshot:', error);
         alert('Failed to capture screenshot. Please try again.');
+
+        // Restore transforms on error (critical - must always restore)
+        if (zoomContainer) {
+            // Restore position properties - set to empty to let CSS take over
+            zoomContainer.style.position = '';
+            zoomContainer.style.top = '';
+            zoomContainer.style.left = '';
+            // Restore transform and update zoom state
+            zoomContainer.style.transform = savedTransform;
+            updateZoomTransform();
+        }
     }
 });
+
+// download board from welcome page
+async function downloadBoard(boardId, boardName) {
+    if (typeof html2canvas === 'undefined') {
+        alert('Screenshot functionality is loading. Please try again in a moment.');
+        return;
+    }
+
+    // Save current state
+    const previousBoardId = currentBoardId;
+    const wasOnWelcomePage = welcomePage && welcomePage.style.display !== 'none';
+
+    // Save current transform state
+    let savedTransform = '';
+    let savedPosition = '';
+    let savedTop = '';
+    let savedLeft = '';
+
+    try {
+        // Load the board temporarily
+        loadFromStorage(boardId);
+        showBoardEditor();
+
+        // Wait for fonts to load
+        await document.fonts.ready;
+
+        // Wait for board to render, images to load, and DOM to settle
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Wait for all images in the board to load
+        const images = corkboard.querySelectorAll('img');
+        const imagePromises = Array.from(images).map(img => {
+            if (img.complete) return Promise.resolve();
+            return new Promise((resolve) => {
+                img.onload = resolve;
+                img.onerror = resolve; // Continue even if image fails
+                setTimeout(resolve, 2000); // Timeout after 2 seconds
+            });
+        });
+        await Promise.all(imagePromises);
+
+        // Ensure lines are drawn
+        redrawLines();
+
+        // Additional wait to ensure everything is rendered
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Save current transform state before modifying
+        if (zoomContainer) {
+            savedTransform = zoomContainer.style.transform || '';
+            // Get computed styles for position properties (they're in CSS, not inline)
+            const computedStyle = window.getComputedStyle(zoomContainer);
+            savedPosition = computedStyle.position;
+            savedTop = computedStyle.top;
+            savedLeft = computedStyle.left;
+        }
+
+        // Temporarily remove ALL transforms and reset positioning
+        if (zoomContainer) {
+            zoomContainer.style.transform = 'none';
+            zoomContainer.style.position = 'static';
+            zoomContainer.style.top = '0';
+            zoomContainer.style.left = '0';
+        }
+
+        // Small delay to ensure transform removal is applied
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Capture the corkboard at exact dimensions without transforms
+        const canvas = await html2canvas(corkboard, {
+            backgroundColor: '#d4a574',
+            scale: 2,
+            logging: false,
+            useCORS: true,
+            allowTaint: true,
+            x: 0,
+            y: 0,
+            width: 2000,
+            height: 1500,
+            windowWidth: 2000,
+            windowHeight: 1500,
+            foreignObjectRendering: false,
+            imageTimeout: 0,
+            removeContainer: true
+        });
+
+        // Restore transforms immediately after capture
+        if (zoomContainer) {
+            zoomContainer.style.transform = savedTransform;
+            // Restore position properties - set to empty to let CSS take over
+            zoomContainer.style.position = '';
+            zoomContainer.style.top = '';
+            zoomContainer.style.left = '';
+            // Re-apply the transform to ensure zoom state is correct
+            updateZoomTransform();
+        }
+
+        // Download as image
+        const link = document.createElement('a');
+        const sanitizedName = boardName.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+        link.download = `deloosional-${sanitizedName}-${new Date().toISOString().split('T')[0]}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+
+        // Restore previous state
+        if (wasOnWelcomePage) {
+            showWelcomePage();
+        } else if (previousBoardId) {
+            loadFromStorage(previousBoardId);
+            showBoardEditor();
+        }
+    } catch (error) {
+        console.error('Error capturing screenshot:', error);
+        alert('Failed to capture screenshot. Please try again.');
+
+        // Restore transforms on error (critical - must always restore)
+        if (zoomContainer) {
+            // Restore position properties - set to empty to let CSS take over
+            zoomContainer.style.position = '';
+            zoomContainer.style.top = '';
+            zoomContainer.style.left = '';
+            // Restore transform and update zoom state
+            zoomContainer.style.transform = savedTransform;
+            updateZoomTransform();
+        }
+
+        // Restore previous state on error
+        if (wasOnWelcomePage) {
+            showWelcomePage();
+        } else if (previousBoardId) {
+            loadFromStorage(previousBoardId);
+            showBoardEditor();
+        }
+    }
+}
 
 // delete note
 function deleteNote(noteId) {
@@ -1997,7 +2225,7 @@ function deleteNote(noteId) {
         notes = notes.filter(n => n.id !== noteId);
 
         // remove DOM element
-        const noteElement = document.getElementById(`note-${noteId}`);
+        const noteElement = getItemElement(noteId);
         if (noteElement) {
             noteElement.remove();
         }
@@ -2462,7 +2690,17 @@ function renderBoardsList() {
             });
         } else {
             const dateStr = board.lastModified
-                ? new Date(board.lastModified).toLocaleDateString()
+                ? (() => {
+                    const date = new Date(board.lastModified);
+                    const day = date.getDate();
+                    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'];
+                    const month = monthNames[date.getMonth()];
+                    const year = date.getFullYear();
+                    const hours = String(date.getHours()).padStart(2, '0');
+                    const minutes = String(date.getMinutes()).padStart(2, '0');
+                    return `${day} ${month} ${year} at ${hours}:${minutes}`;
+                })()
                 : 'No date';
 
             // Get preview if available
@@ -2480,7 +2718,17 @@ function renderBoardsList() {
                         <path d="M16 5l3 3" />
                     </svg>
                 </button>
-                <button class="board-card-delete" data-board-id="${board.id}" title="Delete Board">&times;</button>
+                <button class="board-card-download" data-board-id="${board.id}" title="Download Board">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
+                        <path d="M7 11l5 5l5 -5" />
+                        <path d="M12 4l0 12" />
+                    </svg>
+                </button>
+                <button class="board-card-delete" data-board-id="${board.id}" title="Delete Board">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-tabler icons-tabler-outline icon-tabler-trash"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
+                </button>
                 ${previewHtml}
                 <div class="board-card-name" data-board-id="${board.id}">${board.name}</div>
                 <div class="board-card-date">Last modified: ${dateStr}</div>
@@ -2489,6 +2737,7 @@ function renderBoardsList() {
             boardCard.addEventListener('click', (e) => {
                 if (!e.target.closest('.board-card-delete') &&
                     !e.target.closest('.board-card-rename') &&
+                    !e.target.closest('.board-card-download') &&
                     !e.target.closest('.board-card-name-input')) {
                     openBoard(board.id);
                 }
@@ -2510,6 +2759,14 @@ function renderBoardsList() {
                 renameBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     startRenamingBoard(board.id, boardCard);
+                });
+            }
+
+            const downloadBtn = boardCard.querySelector('.board-card-download');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await downloadBoard(board.id, board.name);
                 });
             }
 
@@ -2614,6 +2871,61 @@ if (logo) {
         exitBoardAndGeneratePreview();
     });
     logo.style.cursor = 'pointer';
+}
+
+// Sidebar toggle functionality
+function toggleSidebar() {
+    if (!sidebar || !boardEditor) return;
+
+    sidebar.classList.toggle('collapsed');
+    // Update board editor class for CSS targeting
+    if (sidebar.classList.contains('collapsed')) {
+        boardEditor.classList.add('sidebar-collapsed');
+    } else {
+        boardEditor.classList.remove('sidebar-collapsed');
+    }
+    // Save sidebar state to localStorage
+    const isCollapsed = sidebar.classList.contains('collapsed');
+    localStorage.setItem('deloosional-sidebar-collapsed', isCollapsed.toString());
+}
+
+if (sidebarToggleBtn && sidebar && boardEditor) {
+    // Toggle on button click - use capture phase to ensure it fires
+    sidebarToggleBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleSidebar();
+    }, true);
+
+    // Also make the entire collapsed header clickable as fallback
+    const sidebarHeader = sidebar.querySelector('.sidebar-header');
+    if (sidebarHeader) {
+        sidebarHeader.addEventListener('click', (e) => {
+            // Only trigger if sidebar is collapsed
+            if (sidebar.classList.contains('collapsed')) {
+                // Don't trigger if click was on the button (already handled)
+                if (e.target !== sidebarToggleBtn && !sidebarToggleBtn.contains(e.target)) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleSidebar();
+                }
+            }
+        }, true);
+    }
+
+    // Keyboard shortcut: Escape key to expand sidebar if collapsed
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && sidebar.classList.contains('collapsed')) {
+            toggleSidebar();
+        }
+    });
+
+    // Load saved sidebar state
+    const savedState = localStorage.getItem('deloosional-sidebar-collapsed');
+    if (savedState === 'true') {
+        sidebar.classList.add('collapsed');
+        boardEditor.classList.add('sidebar-collapsed');
+    }
 }
 
 // Track if we're handling navigation manually to avoid recursion
