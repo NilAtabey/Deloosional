@@ -4,14 +4,12 @@
 
 ## 🧩 About
 
-Deloosional is a crime-board-style note website where students can visually organize their studies. Create sticky notes, drag them around a corkboard, and connect them with red string lines—just like a detective investigating a case!
+Deloosional is a crime-board-style note website where notes come together like pieces to a puzzle. Create sticky notes, drag them around a corkboard, and connect them with red string lines—just like a detective investigating a case!
 
 ## ✨ Features
 
-- **Sticky Notes**: Create notes for concepts, facts, questions, and theories
-- **Custom Colors**: Pick any color for your sticky notes with the color picker
+- **Sticky Notes**: Create custom-colored notes for concepts, facts, questions, and theories
 - **Media Attachment**: Attach images to your notes for visual reference
-- **Highlighter Tool**: Draw realistic highlighter marks on attached images with customizable colors and sizes
 - **Drag & Drop**: Move notes freely around the corkboard
 - **Red String Connections**: Connect related ideas with visual lines
 - **Multiple Note Types**: Organize with different colored notes (concepts, facts, questions, theories)

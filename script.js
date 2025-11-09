@@ -1,4 +1,4 @@
-// Global state
+// global state
 let notes = [];
 let connections = [];
 let noteIdCounter = 0;
@@ -9,6 +9,8 @@ let isConnecting = false;
 let connectionStart = null;
 let linesVisible = true;
 let connectionHandlers = new Map();
+let currentBoardId = null; // track which board is currently being edited
+const MAX_BOARDS = 6; // maximum number of boards (3 columns, 2 rows)
 
 // DOM elements
 const corkboard = document.getElementById('corkboard');
@@ -21,26 +23,39 @@ const toggleLinesSwitch = document.getElementById('toggleLinesSwitch');
 const clearStringsBtn = document.getElementById('clearStringsBtn');
 const downloadBtn = document.getElementById('downloadBtn');
 const addMediaBtn = document.getElementById('addMediaBtn');
-const resizeBoardBtn = document.getElementById('resizeBoardBtn');
-const boardWidthInput = document.getElementById('boardWidth');
-const boardHeightInput = document.getElementById('boardHeight');
+const zoomInBtn = document.getElementById('zoomInBtn');
+const zoomOutBtn = document.getElementById('zoomOutBtn');
+const resetZoomBtn = document.getElementById('resetZoomBtn');
+const zoomContainer = document.getElementById('zoomContainer');
+const boardContainer = document.querySelector('.board-container');
 const noteModal = document.getElementById('noteModal');
 const mediaModal = document.getElementById('mediaModal');
 const closeModal = document.querySelector('.close');
 const closeMediaModal = document.querySelector('.close-media');
 const createNoteBtn = document.getElementById('createNoteBtn');
+const updateNoteBtn = document.getElementById('updateNoteBtn');
+const noteModalTitle = document.getElementById('noteModalTitle');
+let editingNoteId = null; // Track which note is being edited
 const createMediaBtn = document.getElementById('createMediaBtn');
 const mediaUpload = document.getElementById('mediaUpload');
 const mediaPreview = document.getElementById('mediaPreview');
 
+// welcome page elements
+const welcomePage = document.getElementById('welcomePage');
+const boardEditor = document.getElementById('boardEditor');
+const boardsList = document.getElementById('boardsList');
+const createNewBoardBtn = document.getElementById('createNewBoardBtn');
+const backToWelcomeBtn = document.getElementById('backToWelcomeBtn');
+const logo = document.getElementById('logo');
+
 let currentMediaFile = null;
 let mediaItems = [];
 
-// Initialize canvas
+// initialize canvas
 function initCanvas() {
-    // Set canvas size to match corkboard
-    const width = parseInt(corkboard.style.width) || corkboard.offsetWidth || 2000;
-    const height = parseInt(corkboard.style.height) || corkboard.offsetHeight || 1500;
+    // set canvas size to match corkboard (fixed size)
+    const width = 2000;
+    const height = 1500;
     lineCanvas.width = width;
     lineCanvas.height = height;
     lineCanvas.style.width = width + 'px';
@@ -48,64 +63,184 @@ function initCanvas() {
     redrawLines();
 }
 
-// Resize board modal
-const resizeModal = document.getElementById('resizeModal');
-const confirmResizeBtn = document.getElementById('confirmResizeBtn');
-const closeResizeModal = document.querySelector('.close-resize');
+// zoom and pan functionality
+let currentZoom = 1;
+let panX = 0;
+let panY = 0;
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+const MIN_ZOOM = 0.25;
+const MAX_ZOOM = 3;
+const ZOOM_STEP = 0.1;
 
-resizeBoardBtn.addEventListener('click', () => {
-    resizeModal.style.display = 'block';
-    boardWidthInput.value = parseInt(corkboard.style.width) || 2000;
-    boardHeightInput.value = parseInt(corkboard.style.height) || 1500;
-});
+function updateZoomTransform() {
+    if (!zoomContainer) return;
+    const translateX = panX;
+    const translateY = panY;
+    zoomContainer.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+}
 
-closeResizeModal.addEventListener('click', () => {
-    resizeModal.style.display = 'none';
-});
+function setZoom(zoom, centerX = null, centerY = null) {
+    const newZoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
 
-window.addEventListener('click', (e) => {
-    if (e.target === resizeModal) {
-        resizeModal.style.display = 'none';
+    if (centerX !== null && centerY !== null && boardContainer) {
+        // zoom towards a specific point
+        const containerRect = boardContainer.getBoundingClientRect();
+
+        const relativeX = centerX - containerRect.left;
+        const relativeY = centerY - containerRect.top;
+
+        const worldX = (relativeX - panX) / currentZoom;
+        const worldY = (relativeY - panY) / currentZoom;
+
+        panX = relativeX - worldX * newZoom;
+        panY = relativeY - worldY * newZoom;
+    }
+
+    currentZoom = newZoom;
+    updateZoomTransform();
+}
+
+function resetZoom() {
+    if (!boardContainer) return;
+    const containerRect = boardContainer.getBoundingClientRect();
+    const boardWidth = 2000;
+    const boardHeight = 1500;
+    const padding = 40; // space between board and browser border
+
+    // calculate available space (viewport minus padding on all sides)
+    const availableWidth = containerRect.width - (2 * padding);
+    const availableHeight = containerRect.height - (2 * padding);
+
+    // calculate zoom level to fit the entire board with padding
+    // use the smaller zoom to ensure the board fits in both dimensions
+    const zoomX = availableWidth / boardWidth;
+    const zoomY = availableHeight / boardHeight;
+    currentZoom = Math.min(zoomX, zoomY, MAX_ZOOM); // don't exceed max zoom
+    currentZoom = Math.max(currentZoom, MIN_ZOOM); // don't go below min zoom
+
+    // center the board with padding on all sides
+    // the zoom container is positioned at 50% top/left (its origin is at viewport center)
+    // to center the board: panX = -boardWidth/2, panY = -boardHeight/2
+    // to add padding: shift by padding amount to create space from edges
+    panX = -boardWidth / 2 * currentZoom + padding;
+    panY = -boardHeight / 2 * currentZoom + padding;
+    updateZoomTransform();
+}
+
+// convert screen coordinates to board coordinates (accounting for zoom and pan)
+function screenToBoard(screenX, screenY) {
+    if (!corkboard) return { x: screenX, y: screenY };
+
+    // get the board's current position on screen
+    // getBoundingClientRect() already includes the transform effects (pan and zoom)
+    const boardRect = corkboard.getBoundingClientRect();
+
+    // convert screen position to position within the transformed board
+    // subtract board's screen position, then divide by zoom
+    const x = (screenX - boardRect.left) / currentZoom;
+    const y = (screenY - boardRect.top) / currentZoom;
+
+    return { x, y };
+}
+
+// initialize zoom to center the board
+function initZoom() {
+    resetZoom();
+}
+
+// zoom buttons
+if (zoomInBtn) {
+    zoomInBtn.addEventListener('click', () => {
+        if (!boardContainer) return;
+        const rect = boardContainer.getBoundingClientRect();
+        setZoom(currentZoom + ZOOM_STEP, rect.width / 2, rect.height / 2);
+    });
+}
+
+if (zoomOutBtn) {
+    zoomOutBtn.addEventListener('click', () => {
+        if (!boardContainer) return;
+        const rect = boardContainer.getBoundingClientRect();
+        setZoom(currentZoom - ZOOM_STEP, rect.width / 2, rect.height / 2);
+    });
+}
+
+if (resetZoomBtn) {
+    resetZoomBtn.addEventListener('click', () => {
+        resetZoom();
+    });
+}
+
+// mouse wheel zoom - prevent scrolling, only zoom
+if (boardContainer) {
+    boardContainer.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+        setZoom(currentZoom + delta, e.clientX, e.clientY);
+    }, { passive: false });
+
+    // also prevent scrolling on the zoom container and corkboard
+    if (zoomContainer) {
+        zoomContainer.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+            setZoom(currentZoom + delta, e.clientX, e.clientY);
+        }, { passive: false });
+    }
+
+    if (corkboard) {
+        corkboard.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+            setZoom(currentZoom + delta, e.clientX, e.clientY);
+        }, { passive: false });
+    }
+
+    // pan functionality
+    boardContainer.addEventListener('mousedown', (e) => {
+        // only pan if clicking on the board container itself, not on notes/media
+        if (e.target === boardContainer || e.target === zoomContainer || e.target === corkboard || e.target === lineCanvas) {
+            isPanning = true;
+            panStartX = e.clientX - panX;
+            panStartY = e.clientY - panY;
+            boardContainer.classList.add('panning');
+            e.preventDefault();
+        }
+    });
+}
+
+document.addEventListener('mousemove', (e) => {
+    if (isPanning) {
+        panX = e.clientX - panStartX;
+        panY = e.clientY - panStartY;
+        updateZoomTransform();
     }
 });
 
-confirmResizeBtn.addEventListener('click', () => {
-    const newWidth = parseInt(boardWidthInput.value) || 2000;
-    const newHeight = parseInt(boardHeightInput.value) || 1500;
-
-    if (newWidth < 1000 || newWidth > 5000 || newHeight < 1000 || newHeight > 5000) {
-        alert('Board size must be between 1000px and 5000px');
-        return;
+document.addEventListener('mouseup', () => {
+    if (isPanning) {
+        isPanning = false;
+        if (boardContainer) {
+            boardContainer.classList.remove('panning');
+        }
     }
-
-    corkboard.style.width = newWidth + 'px';
-    corkboard.style.height = newHeight + 'px';
-
-    // Update canvas
-    setTimeout(() => {
-        initCanvas();
-    }, 100);
-
-    saveToStorage();
-    resizeModal.style.display = 'none';
 });
 
-// Resize canvas on window resize
+// resize canvas on window resize
 window.addEventListener('resize', () => {
     setTimeout(initCanvas, 100);
 });
 
-// Initialize on load
-document.addEventListener('DOMContentLoaded', () => {
-    // Wait a bit for styles to apply
-    setTimeout(() => {
-        initCanvas();
-        loadFromStorage();
-    }, 100);
-});
+// initialize on load - removed, now handled by welcome page initialization
 
-// Modal functionality
+// modal functionality
 addNoteBtn.addEventListener('click', () => {
+    resetModal();
     noteModal.style.display = 'block';
     document.getElementById('noteTitle').focus();
 });
@@ -114,6 +249,18 @@ closeModal.addEventListener('click', () => {
     noteModal.style.display = 'none';
     resetModal();
 });
+
+// reset modal to create mode
+function resetModal() {
+    document.getElementById('noteTitle').value = '';
+    document.getElementById('noteContent').value = '';
+    document.getElementById('noteType').value = 'concept';
+    document.getElementById('noteColor').value = '#ffeb3b';
+    noteModalTitle.textContent = 'Create New Note';
+    createNoteBtn.style.display = 'block';
+    updateNoteBtn.style.display = 'none';
+    editingNoteId = null;
+}
 
 window.addEventListener('click', (e) => {
     if (e.target === noteModal) {
@@ -128,17 +275,76 @@ createNoteBtn.addEventListener('click', () => {
     const type = document.getElementById('noteType').value;
     const color = document.getElementById('noteColor').value;
 
-    if (title) {
-        createNote(title, content, type, color,
-            Math.random() * (corkboard.offsetWidth - 250) + 25,
-            Math.random() * (corkboard.offsetHeight - 200) + 25
-        );
-        noteModal.style.display = 'none';
-        resetModal();
-    }
+    // allow creating notes even with empty title and content
+    createNote(title, content, type, color,
+        Math.random() * (corkboard.offsetWidth - 250) + 25,
+        Math.random() * (corkboard.offsetHeight - 200) + 25
+    );
+    noteModal.style.display = 'none';
+    resetModal();
 });
 
-// Media modal functionality
+updateNoteBtn.addEventListener('click', () => {
+    if (!editingNoteId) return;
+
+    const title = document.getElementById('noteTitle').value.trim();
+    const content = document.getElementById('noteContent').value;
+    const type = document.getElementById('noteType').value;
+    const color = document.getElementById('noteColor').value;
+
+    // update the note
+    const note = notes.find(n => n.id === editingNoteId);
+    if (note) {
+        note.title = title || 'New Note';
+        // convert newlines from textarea back to <br> tags for HTML rendering
+        note.content = content.replace(/\n/g, '<br>');
+        note.type = type;
+        note.color = color;
+
+        // re-render the note with updated properties
+        renderNote(note);
+        // redraw lines in case connections need updating
+        redrawLines();
+        saveToStorage();
+    }
+
+    // reset editing state and close modal
+    editingNoteId = null;
+    noteModal.style.display = 'none';
+    resetModal();
+});
+
+// function to open note modal in edit mode
+function openNoteModalForEdit(noteId) {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+
+    editingNoteId = noteId;
+
+    // populate modal with note data
+    document.getElementById('noteTitle').value = note.title || '';
+    // convert HTML content to plain text for textarea, preserving line breaks
+    let contentText = note.content || '';
+    // replace <br> tags with newlines before extracting text
+    contentText = contentText.replace(/<br\s*\/?>/gi, '\n');
+    // remove other HTML tags and get plain text
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = contentText;
+    document.getElementById('noteContent').value = tempDiv.textContent || tempDiv.innerText || '';
+    document.getElementById('noteType').value = note.type || 'concept';
+    document.getElementById('noteColor').value = note.color || '#ffeb3b';
+
+    // update modal title and button
+    if (noteModalTitle) noteModalTitle.textContent = 'Edit Note';
+    if (createNoteBtn) createNoteBtn.style.display = 'none';
+    if (updateNoteBtn) updateNoteBtn.style.display = 'block';
+
+    // show modal
+    noteModal.style.display = 'block';
+    document.getElementById('noteTitle').focus();
+}
+
+// media modal functionality
 addMediaBtn.addEventListener('click', () => {
     mediaModal.style.display = 'block';
 });
@@ -177,15 +383,7 @@ function resetMediaModal() {
     currentMediaFile = null;
 }
 
-function resetModal() {
-    document.getElementById('noteTitle').value = '';
-    document.getElementById('noteContent').value = '';
-    document.getElementById('noteType').value = 'concept';
-    document.getElementById('noteColor').value = '#ffeb3b';
-    currentMediaFile = null;
-}
-
-// Create media item
+// create media item
 function createMediaItem(mediaDataUrl, x, y) {
     const mediaId = noteIdCounter++;
     const mediaItem = {
@@ -194,9 +392,9 @@ function createMediaItem(mediaDataUrl, x, y) {
         mediaDataUrl: mediaDataUrl,
         x: x || 100,
         y: y || 100,
-        width: 300, // Default width
-        height: null, // Will be set based on aspect ratio
-        aspectRatio: null // Will be calculated when image loads
+        width: 300, // default width
+        height: null, // will be set based on aspect ratio
+        aspectRatio: null // will be calculated when image loads
     };
 
     mediaItems.push(mediaItem);
@@ -205,7 +403,7 @@ function createMediaItem(mediaDataUrl, x, y) {
     return mediaItem;
 }
 
-// Render media item
+// render media item
 function renderMediaItem(mediaItem) {
     const mediaElement = document.createElement('div');
     mediaElement.className = 'media-item';
@@ -213,7 +411,7 @@ function renderMediaItem(mediaItem) {
     mediaElement.style.left = mediaItem.x + 'px';
     mediaElement.style.top = mediaItem.y + 'px';
 
-    // Set width and height if they exist
+    // set width and height if they exist
     if (mediaItem.width) {
         mediaElement.style.width = mediaItem.width + 'px';
     }
@@ -239,7 +437,7 @@ function renderMediaItem(mediaItem) {
 
     notesContainer.appendChild(mediaElement);
 
-    // Calculate aspect ratio when image loads
+    // calculate aspect ratio when image loads
     const img = mediaElement.querySelector('.media-image');
     if (img) {
         img.onload = function () {
@@ -258,9 +456,9 @@ function renderMediaItem(mediaItem) {
     updateMediaPosition(mediaItem.id);
 }
 
-// Attach listeners to media item
+// attach listeners to media item
 function attachMediaListeners(mediaElement, mediaItem) {
-    // Drag functionality
+    // drag functionality
     const mediaContainer = mediaElement.querySelector('.media-image-container');
 
     mediaContainer.addEventListener('mousedown', (e) => {
@@ -272,7 +470,7 @@ function attachMediaListeners(mediaElement, mediaItem) {
         startDrag(mediaItem.id, e, true);
     });
 
-    // Resize handle
+    // resize handle
     const resizeHandle = mediaElement.querySelector('.resize-handle');
     if (resizeHandle) {
         resizeHandle.addEventListener('mousedown', (e) => {
@@ -282,7 +480,7 @@ function attachMediaListeners(mediaElement, mediaItem) {
         });
     }
 
-    // Connect button - defaults to top edge
+    // connect button - defaults to top edge
     const connectBtn = mediaElement.querySelector('.connect-media-btn');
     if (connectBtn) {
         connectBtn.addEventListener('click', (e) => {
@@ -291,7 +489,7 @@ function attachMediaListeners(mediaElement, mediaItem) {
         });
     }
 
-    // Delete button
+    // delete button
     const deleteBtn = mediaElement.querySelector('.delete-media-btn');
     if (deleteBtn) {
         deleteBtn.addEventListener('click', (e) => {
@@ -300,19 +498,19 @@ function attachMediaListeners(mediaElement, mediaItem) {
         });
     }
 
-    // Connection points
+    // connection points
     const connectionPoints = mediaElement.querySelectorAll('.connection-point');
     connectionPoints.forEach(point => {
         point.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            // Get position from the clicked point
+            // get position from the clicked point
             const position = point.getAttribute('data-position') || point.dataset.position || point.className.match(/\b(top|bottom|left|right)\b/)?.[1] || 'top';
             if (isConnecting && connectionStart && connectionStart.noteId !== mediaItem.id) {
-                // Complete connection to this media item's edge
+                // complete connection to this media item's edge
                 completeConnection(mediaItem.id, position);
             } else if (!isConnecting) {
-                // Start connection from this media item's edge
+                // start connection from this media item's edge
                 startConnection(mediaItem.id, true, position);
             }
         });
@@ -338,15 +536,15 @@ function updateMediaPosition(mediaId) {
 
 function deleteMediaItem(mediaId) {
     if (confirm('Are you sure you want to delete this media?')) {
-        // Remove connections
+        // remove connections
         connections = connections.filter(conn =>
             conn.from !== mediaId && conn.to !== mediaId
         );
 
-        // Remove media item
+        // remove media item
         mediaItems = mediaItems.filter(m => m.id !== mediaId);
 
-        // Remove DOM element
+        // remove DOM element
         const mediaElement = document.getElementById(`media-${mediaId}`);
         if (mediaElement) {
             mediaElement.remove();
@@ -357,7 +555,7 @@ function deleteMediaItem(mediaId) {
     }
 }
 
-// Handle media upload
+// handle media upload
 mediaUpload.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file && file.type.startsWith('image/')) {
@@ -375,7 +573,7 @@ mediaUpload.addEventListener('change', (e) => {
     }
 });
 
-// Update color picker based on note type
+// update color picker based on note type
 document.getElementById('noteType').addEventListener('change', (e) => {
     const type = e.target.value;
     const defaultColors = {
@@ -387,22 +585,22 @@ document.getElementById('noteType').addEventListener('change', (e) => {
     document.getElementById('noteColor').value = defaultColors[type] || '#ffeb3b';
 });
 
-// Calculate brightness of a color (0-255)
+// calculate brightness of a color (0-255)
 function getBrightness(color) {
     const hex = color.replace('#', '');
     const r = parseInt(hex.substr(0, 2), 16);
     const g = parseInt(hex.substr(2, 2), 16);
     const b = parseInt(hex.substr(4, 2), 16);
-    // Using relative luminance formula
+    // using relative luminance formula
     return (r * 299 + g * 587 + b * 114) / 1000;
 }
 
-// Determine if text should be light based on background color
+// determine if text should be light based on background color
 function shouldUseLightText(bgColor) {
     return getBrightness(bgColor) < 128;
 }
 
-// Create a new note
+// create a new note
 function createNote(title, content, type, color, x, y) {
     const noteId = noteIdCounter++;
     const note = {
@@ -423,9 +621,9 @@ function createNote(title, content, type, color, x, y) {
     return note;
 }
 
-// Render a note on the board
+// render a note on the board
 function renderNote(note) {
-    // Remove existing note if re-rendering
+    // remove existing note if re-rendering
     const existingNote = document.getElementById(`note-${note.id}`);
     if (existingNote) {
         existingNote.remove();
@@ -439,13 +637,13 @@ function renderNote(note) {
     noteElement.style.width = (note.width || 200) + 'px';
     noteElement.style.height = (note.height || 150) + 'px';
 
-    // Apply custom color or default color based on type
+    // apply custom color or default color based on type
     let bgColor;
     if (note.color && note.color !== '#ffeb3b') {
         bgColor = note.color;
         noteElement.style.backgroundColor = bgColor;
     } else {
-        // Use default colors based on type if no custom color
+        // use default colors based on type if no custom color
         const defaultColors = {
             concept: '#ffeb3b',
             fact: '#81c784',
@@ -454,15 +652,20 @@ function renderNote(note) {
         };
         bgColor = defaultColors[note.type] || '#ffeb3b';
         noteElement.style.backgroundColor = bgColor;
-        // Update note.color to match default
+        // update note.color to match default
         if (!note.color) {
             note.color = bgColor;
         }
     }
 
-    // Determine text color based on background brightness
+    // determine text color based on background brightness
     const useLightText = shouldUseLightText(bgColor);
     const textClass = useLightText ? 'light-text' : '';
+
+    // add class to note element for resize handle styling
+    if (useLightText) {
+        noteElement.classList.add('has-light-text');
+    }
 
     const typeIcons = {
         concept: '🎯',
@@ -471,6 +674,7 @@ function renderNote(note) {
         theory: '🔬'
     };
 
+    // build the note HTML structure
     noteElement.innerHTML = `
         <div class="thumbtack"></div>
         <span class="note-type">${typeIcons[note.type] || '🎯'}</span>
@@ -481,38 +685,46 @@ function renderNote(note) {
         <div class="note-header ${useLightText ? 'light-border' : ''}">
             <input type="text" class="note-title ${textClass}" value="${escapeHtml(note.title)}" data-note-id="${note.id}">
         </div>
-        <textarea class="note-content ${textClass}" data-note-id="${note.id}" placeholder="Add your thoughts...">${escapeHtml(note.content)}</textarea>
         <div class="note-actions">
+            <button class="edit-btn" title="Edit note">✏️</button>
             <button class="connect-btn" title="Connect to another note">🔗</button>
             <button class="delete-btn" title="Delete note">🗑️</button>
         </div>
         <div class="resize-handle" data-note-id="${note.id}" title="Resize note"></div>
     `;
 
+    // set content separately to preserve HTML formatting
+    const contentDiv = document.createElement('div');
+    contentDiv.className = `note-content ${textClass}`;
+    contentDiv.setAttribute('data-note-id', note.id);
+    contentDiv.setAttribute('contenteditable', 'true');
+    contentDiv.setAttribute('placeholder', 'Add your thoughts...');
+    contentDiv.innerHTML = note.content || '';
+    noteElement.insertBefore(contentDiv, noteElement.querySelector('.note-actions'));
+
     notesContainer.appendChild(noteElement);
     attachNoteListeners(noteElement, note);
     updateNotePosition(note.id);
 
-    // Auto-expand textarea
-    const textarea = noteElement.querySelector('.note-content');
-    if (textarea) {
-        textarea.style.height = 'auto';
-        textarea.style.height = textarea.scrollHeight + 'px';
+    // auto-expand content div (contentDiv is already created above)
+    if (contentDiv) {
+        contentDiv.style.height = 'auto';
+        contentDiv.style.height = contentDiv.scrollHeight + 'px';
     }
 }
 
-// Escape HTML to prevent XSS
+// escape HTML to prevent XSS
 function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
 }
 
-// Attach event listeners to a note
+// attach event listeners to a note
 function attachNoteListeners(noteElement, note) {
-    // Drag functionality - attach to the entire note, but exclude inputs and buttons
+    // drag functionality - attach to the entire note, but exclude inputs and buttons
     noteElement.addEventListener('mousedown', (e) => {
-        // Don't start drag if clicking on interactive elements
+        // don't start drag if clicking on interactive elements
         const target = e.target;
         if (target.tagName === 'INPUT' ||
             target.tagName === 'TEXTAREA' ||
@@ -523,14 +735,15 @@ function attachNoteListeners(noteElement, note) {
             return;
         }
 
-        // Start drag
+        // start drag
         startDrag(note.id, e);
     });
 
-    // Edit functionality
+
+    // edit functionality
     const titleInput = noteElement.querySelector('.note-title');
     titleInput.addEventListener('mousedown', (e) => {
-        e.stopPropagation(); // Prevent drag when clicking on title
+        e.stopPropagation(); // prevent drag when clicking on title
     });
     titleInput.addEventListener('blur', (e) => {
         updateNoteTitle(note.id, e.target.value);
@@ -542,17 +755,26 @@ function attachNoteListeners(noteElement, note) {
         }
     });
 
-    const contentTextarea = noteElement.querySelector('.note-content');
-    contentTextarea.addEventListener('mousedown', (e) => {
-        e.stopPropagation(); // Prevent drag when clicking on content
+    const contentDiv = noteElement.querySelector('.note-content');
+    contentDiv.addEventListener('mousedown', (e) => {
+        e.stopPropagation(); // prevent drag when clicking on content
     });
 
-    // Auto-expand textarea (respecting note height constraints)
-    function autoExpandTextarea() {
-        contentTextarea.style.height = 'auto';
-        const contentHeight = contentTextarea.scrollHeight;
+    // handle placeholder for contenteditable div
+    function handlePlaceholder() {
+        if (contentDiv.textContent.trim() === '') {
+            contentDiv.classList.add('empty');
+        } else {
+            contentDiv.classList.remove('empty');
+        }
+    }
 
-        // Calculate available height based on note's current height
+    // auto-expand content div (respecting note height constraints)
+    function autoExpandContent() {
+        contentDiv.style.height = 'auto';
+        const contentHeight = contentDiv.scrollHeight;
+
+        // calculate available height based on note's current height
         const noteHeight = noteElement.offsetHeight || note.height || 150;
         const paddingTop = 40;
         const paddingBottom = 15;
@@ -560,60 +782,95 @@ function attachNoteListeners(noteElement, note) {
         const actionsHeight = 40;
         const availableHeight = noteHeight - paddingTop - paddingBottom - headerHeight - actionsHeight;
 
-        // Set height to fit content, but not exceed available space
-        const textareaHeight = Math.max(60, Math.min(availableHeight, contentHeight));
-        contentTextarea.style.height = textareaHeight + 'px';
+        // set height to fit content, but not exceed available space
+        const contentDivHeight = Math.max(60, Math.min(availableHeight, contentHeight));
+        contentDiv.style.height = contentDivHeight + 'px';
 
-        // Show scrollbar if content exceeds available space
+        // show scrollbar if content exceeds available space
         if (contentHeight > availableHeight) {
-            contentTextarea.style.overflowY = 'auto';
+            contentDiv.style.overflowY = 'auto';
         } else {
-            contentTextarea.style.overflowY = 'hidden';
+            contentDiv.style.overflowY = 'hidden';
         }
     }
 
-    contentTextarea.addEventListener('input', autoExpandTextarea);
-    contentTextarea.addEventListener('blur', (e) => {
-        updateNoteContent(note.id, e.target.value);
-        autoExpandTextarea();
+    // keyboard shortcuts for formatting (Ctrl+B, Ctrl+I, Ctrl+U)
+    contentDiv.addEventListener('keydown', (e) => {
+        // check for Ctrl+B (bold), Ctrl+I (italic), Ctrl+U (underline)
+        if (e.ctrlKey || e.metaKey) {
+            if (e.key === 'b' || e.key === 'B') {
+                e.preventDefault();
+                document.execCommand('bold', false, null);
+                return false;
+            } else if (e.key === 'i' || e.key === 'I') {
+                e.preventDefault();
+                document.execCommand('italic', false, null);
+                return false;
+            } else if (e.key === 'u' || e.key === 'U') {
+                e.preventDefault();
+                document.execCommand('underline', false, null);
+                return false;
+            }
+        }
     });
 
-    // Initial expansion
-    setTimeout(autoExpandTextarea, 10);
+    contentDiv.addEventListener('input', () => {
+        autoExpandContent();
+        handlePlaceholder();
+    });
 
-    // Delete button
+    contentDiv.addEventListener('blur', (e) => {
+        updateNoteContent(note.id, e.target.innerHTML);
+        autoExpandContent();
+        handlePlaceholder();
+    });
+
+    // initial setup
+    handlePlaceholder();
+    setTimeout(autoExpandContent, 10);
+
+    // edit button - open modal in edit mode
+    const editBtn = noteElement.querySelector('.edit-btn');
+    if (editBtn) {
+        editBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            openNoteModalForEdit(note.id);
+        });
+    }
+
+    // delete button
     const deleteBtn = noteElement.querySelector('.delete-btn');
     deleteBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         deleteNote(note.id);
     });
 
-    // Connect button - defaults to top edge
+    // connect button - defaults to top edge
     const connectBtn = noteElement.querySelector('.connect-btn');
     connectBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         startConnection(note.id, false, 'top');
     });
 
-    // Connection points
+    // connection points
     const connectionPoints = noteElement.querySelectorAll('.connection-point');
     connectionPoints.forEach(point => {
         point.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
-            // Get position from the clicked point
+            // get position from the clicked point
             const position = point.getAttribute('data-position') || point.dataset.position || point.className.match(/\b(top|bottom|left|right)\b/)?.[1] || 'top';
             if (isConnecting && connectionStart && connectionStart.noteId !== note.id) {
-                // Complete connection to this note's edge
+                // complete connection to this note's edge
                 completeConnection(note.id, position);
             } else if (!isConnecting) {
-                // Start connection from this note's edge
+                // start connection from this note's edge
                 startConnection(note.id, false, position);
             }
         });
     });
 
-    // Resize handle
+    // resize handle
     const resizeHandle = noteElement.querySelector('.resize-handle');
     if (resizeHandle) {
         resizeHandle.addEventListener('mousedown', (e) => {
@@ -624,9 +881,9 @@ function attachNoteListeners(noteElement, note) {
     }
 }
 
-// Drag and drop
+// drag and drop
 function startDrag(itemId, e, isMedia = false) {
-    if (isDragging) return; // Prevent multiple drags
+    if (isDragging) return; // prevent multiple drags
 
     isDragging = true;
     if (isMedia) {
@@ -649,10 +906,10 @@ function startDrag(itemId, e, isMedia = false) {
 
     itemElement.classList.add('dragging');
 
-    const rect = itemElement.getBoundingClientRect();
-    const boardRect = corkboard.getBoundingClientRect();
-    dragOffset.x = e.clientX - rect.left;
-    dragOffset.y = e.clientY - rect.top;
+    // convert mouse position to board coordinates and calculate offset
+    const boardPos = screenToBoard(e.clientX, e.clientY);
+    dragOffset.x = boardPos.x - currentNote.x;
+    dragOffset.y = boardPos.y - currentNote.y;
 
     document.addEventListener('mousemove', onDrag);
     document.addEventListener('mouseup', stopDrag);
@@ -663,11 +920,12 @@ function startDrag(itemId, e, isMedia = false) {
 function onDrag(e) {
     if (!isDragging || !currentNote) return;
 
-    const boardRect = corkboard.getBoundingClientRect();
-    const x = e.clientX - boardRect.left - dragOffset.x;
-    const y = e.clientY - boardRect.top - dragOffset.y;
+    // convert mouse position to board coordinates
+    const boardPos = screenToBoard(e.clientX, e.clientY);
+    const x = boardPos.x - dragOffset.x;
+    const y = boardPos.y - dragOffset.y;
 
-    // Constrain to board bounds
+    // constrain to board bounds
     const elementId = currentNote.type === 'media' ? `media-${currentNote.id}` : `note-${currentNote.id}`;
     const itemElement = document.getElementById(elementId);
     if (!itemElement) return;
@@ -678,7 +936,7 @@ function onDrag(e) {
     currentNote.x = Math.max(0, Math.min(x, maxX));
     currentNote.y = Math.max(0, Math.min(y, maxY));
 
-    // Check if it's a media item by looking for mediaDataUrl
+    // check if it's a media item by looking for mediaDataUrl
     if (currentNote.mediaDataUrl && !currentNote.title) {
         updateMediaPosition(currentNote.id);
     } else {
@@ -723,7 +981,7 @@ function updateNotePosition(noteId) {
     }
 }
 
-// Resize functionality
+// resize functionality
 let isResizing = false;
 let resizeNote = null;
 let resizeStartX = 0;
@@ -782,37 +1040,37 @@ function onResize(e) {
         noteElement.style.width = newWidth + 'px';
         noteElement.style.height = newHeight + 'px';
 
-        // Calculate available height for textarea (total height - padding - header - actions)
-        // Padding: 15px top + 15px bottom = 30px, padding-top: 40px (for type icon) = 40px
-        // Header: ~30px, Actions: ~40px
-        // Total overhead: ~110px
-        const paddingTop = 40; // For floating type icon
+        // calculate available height for textarea (total height - padding - header - actions)
+        // padding: 15px top + 15px bottom = 30px, padding-top: 40px (for type icon) = 40px
+        // header: ~30px, actions: ~40px
+        // total overhead: ~110px
+        const paddingTop = 40; // for floating type icon
         const paddingBottom = 15;
         const headerHeight = 30;
         const actionsHeight = 40;
         const availableHeight = newHeight - paddingTop - paddingBottom - headerHeight - actionsHeight;
 
-        // Update textarea to fit available space
-        const textarea = noteElement.querySelector('.note-content');
-        if (textarea) {
-            // First, set height to auto to get the actual content height
-            textarea.style.height = 'auto';
-            const contentHeight = textarea.scrollHeight;
+        // update content div to fit available space
+        const contentDiv = noteElement.querySelector('.note-content');
+        if (contentDiv) {
+            // first, set height to auto to get the actual content height
+            contentDiv.style.height = 'auto';
+            const contentHeight = contentDiv.scrollHeight;
 
-            // Set textarea height to fit available space, but allow scrolling if content is larger
-            const textareaHeight = Math.max(60, Math.min(availableHeight, contentHeight));
-            textarea.style.height = textareaHeight + 'px';
+            // set content div height to fit available space, but allow scrolling if content is larger
+            const contentDivHeight = Math.max(60, Math.min(availableHeight, contentHeight));
+            contentDiv.style.height = contentDivHeight + 'px';
 
-            // If content is larger than available space, show scrollbar
+            // if content is larger than available space, show scrollbar
             if (contentHeight > availableHeight) {
-                textarea.style.overflowY = 'auto';
+                contentDiv.style.overflowY = 'auto';
             } else {
-                textarea.style.overflowY = 'hidden';
+                contentDiv.style.overflowY = 'hidden';
             }
         }
     }
 
-    // Redraw lines to update connection positions
+    // redraw lines to update connection positions
     redrawLines();
 }
 
@@ -822,9 +1080,9 @@ function stopResize(e) {
         if (noteElement) {
             noteElement.classList.remove('resizing');
 
-            // Final textarea height adjustment to ensure it fits properly
-            const textarea = noteElement.querySelector('.note-content');
-            if (textarea) {
+            // final content div height adjustment to ensure it fits properly
+            const contentDiv = noteElement.querySelector('.note-content');
+            if (contentDiv) {
                 const noteHeight = noteElement.offsetHeight;
                 const paddingTop = 40;
                 const paddingBottom = 15;
@@ -832,15 +1090,15 @@ function stopResize(e) {
                 const actionsHeight = 40;
                 const availableHeight = noteHeight - paddingTop - paddingBottom - headerHeight - actionsHeight;
 
-                textarea.style.height = 'auto';
-                const contentHeight = textarea.scrollHeight;
-                const textareaHeight = Math.max(60, Math.min(availableHeight, contentHeight));
-                textarea.style.height = textareaHeight + 'px';
+                contentDiv.style.height = 'auto';
+                const contentHeight = contentDiv.scrollHeight;
+                const contentDivHeight = Math.max(60, Math.min(availableHeight, contentHeight));
+                contentDiv.style.height = contentDivHeight + 'px';
 
                 if (contentHeight > availableHeight) {
-                    textarea.style.overflowY = 'auto';
+                    contentDiv.style.overflowY = 'auto';
                 } else {
-                    textarea.style.overflowY = 'hidden';
+                    contentDiv.style.overflowY = 'hidden';
                 }
             }
         }
@@ -857,7 +1115,7 @@ function stopResize(e) {
     }
 }
 
-// Media resize functionality (maintains aspect ratio)
+// media resize functionality (maintains aspect ratio)
 let isMediaResizing = false;
 let resizeMediaItem = null;
 let mediaResizeStartX = 0;
@@ -881,13 +1139,13 @@ function startMediaResize(mediaId, e) {
         return;
     }
 
-    // Calculate aspect ratio if not set
+    // calculate aspect ratio if not set
     if (!resizeMediaItem.aspectRatio) {
         const img = mediaElement.querySelector('.media-image');
         if (img && img.naturalWidth && img.naturalHeight) {
             resizeMediaItem.aspectRatio = img.naturalWidth / img.naturalHeight;
         } else {
-            // Default to 1:1 if we can't determine
+            // default to 1:1 if we can't determine
             resizeMediaItem.aspectRatio = 1;
         }
     }
@@ -911,7 +1169,7 @@ function onMediaResize(e) {
     const deltaX = e.clientX - mediaResizeStartX;
     const deltaY = e.clientY - mediaResizeStartY;
 
-    // Use the larger delta to maintain aspect ratio
+    // use the larger delta to maintain aspect ratio
     const delta = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
 
     const minWidth = 100;
@@ -919,15 +1177,15 @@ function onMediaResize(e) {
     const maxWidth = 800;
     const maxHeight = 800;
 
-    // Calculate new width based on delta
+    // calculate new width based on delta
     let newWidth = mediaResizeStartWidth + delta;
     newWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
 
-    // Calculate height to maintain aspect ratio
+    // calculate height to maintain aspect ratio
     let newHeight = newWidth / resizeMediaItem.aspectRatio;
     newHeight = Math.max(minHeight, Math.min(maxHeight, newHeight));
 
-    // If height would exceed max, recalculate from height
+    // if height would exceed max, recalculate from height
     if (newHeight >= maxHeight) {
         newHeight = maxHeight;
         newWidth = newHeight * resizeMediaItem.aspectRatio;
@@ -941,7 +1199,7 @@ function onMediaResize(e) {
         mediaElement.style.width = newWidth + 'px';
         mediaElement.style.height = newHeight + 'px';
 
-        // Update image to maintain aspect ratio
+        // update image to maintain aspect ratio
         const img = mediaElement.querySelector('.media-image');
         if (img) {
             img.style.width = '100%';
@@ -950,7 +1208,7 @@ function onMediaResize(e) {
         }
     }
 
-    // Redraw lines to update connection positions
+    // redraw lines to update connection positions
     redrawLines();
 }
 
@@ -973,7 +1231,7 @@ function stopMediaResize(e) {
     }
 }
 
-// Connection functionality
+// connection functionality
 let previewMouseX = 0;
 let previewMouseY = 0;
 let previewConnectionHandler = null;
@@ -981,34 +1239,34 @@ let cancelOnEmptyClickHandler = null;
 
 function startConnection(itemId, isMedia = false, position = 'top') {
     isConnecting = true;
-    // Ensure position is valid
+    // ensure position is valid
     const validPositions = ['top', 'bottom', 'left', 'right'];
     const finalPosition = validPositions.includes(position) ? position : 'top';
     connectionStart = { noteId: itemId, isMedia: isMedia, position: finalPosition };
 
-    // Show connection points on all notes and media, add click handlers
+    // show connection points on all notes and media, add click handlers
     connectionHandlers.clear();
 
-    // Add handlers for notes
+    // add handlers for notes
     notes.forEach(note => {
         const noteElement = document.getElementById(`note-${note.id}`);
         if (noteElement) {
             noteElement.classList.add('connecting');
-            // Add click handler to complete connection (skip the source item)
-            // Only allow connections via connection points, not clicking anywhere on the note
+            // add click handler to complete connection (skip the source item)
+            // only allow connections via connection points, not clicking anywhere on the note
         }
     });
 
-    // Add handlers for media items
+    // add handlers for media items
     mediaItems.forEach(mediaItem => {
         const mediaElement = document.getElementById(`media-${mediaItem.id}`);
         if (mediaElement) {
             mediaElement.classList.add('connecting');
-            // Only allow connections via connection points, not clicking anywhere on the media
+            // only allow connections via connection points, not clicking anywhere on the media
         }
     });
 
-    // Calculate initial start point for preview
+    // calculate initial start point for preview
     let startItem;
     if (connectionStart.isMedia) {
         startItem = mediaItems.find(m => m.id === connectionStart.noteId);
@@ -1020,7 +1278,7 @@ function startConnection(itemId, isMedia = false, position = 'top') {
         const startElementId = connectionStart.isMedia ? `media-${startItem.id}` : `note-${startItem.id}`;
         const startElement = document.getElementById(startElementId);
         if (startElement) {
-            // Set initial preview position to start point
+            // set initial preview position to start point
             if (connectionStart.position === 'top') {
                 previewMouseX = startItem.x + startElement.offsetWidth / 2;
                 previewMouseY = startItem.y;
@@ -1040,25 +1298,26 @@ function startConnection(itemId, isMedia = false, position = 'top') {
         }
     }
 
-    // Add mousemove handler to draw preview line
+    // add mousemove handler to draw preview line
     previewConnectionHandler = (e) => {
         if (!isConnecting || !connectionStart) return;
 
-        const boardRect = corkboard.getBoundingClientRect();
-        previewMouseX = e.clientX - boardRect.left;
-        previewMouseY = e.clientY - boardRect.top;
+        // convert mouse position to board coordinates
+        const boardPos = screenToBoard(e.clientX, e.clientY);
+        previewMouseX = boardPos.x;
+        previewMouseY = boardPos.y;
 
-        // Redraw lines including preview
+        // redraw lines including preview
         redrawLines();
     };
 
     document.addEventListener('mousemove', previewConnectionHandler);
 
-    // Cancel connection on empty space click
+    // cancel connection on empty space click
     cancelOnEmptyClickHandler = (e) => {
         if (!isConnecting || !connectionStart) return;
 
-        // Check if click is on a connection point or item
+        // check if click is on a connection point or item
         const target = e.target;
         const isConnectionPoint = target.classList.contains('connection-point') ||
             target.closest('.connection-point');
@@ -1066,17 +1325,15 @@ function startConnection(itemId, isMedia = false, position = 'top') {
             target.closest('.media-item');
         const isButton = target.tagName === 'BUTTON' || target.closest('button');
 
-        // If clicked on empty space (not a connection point, item, or button), cancel
+        // if clicked on empty space (not a connection point, item, or button), cancel
         if (!isConnectionPoint && !isNoteOrMedia && !isButton) {
-            // Check if click is within the corkboard
-            const boardRect = corkboard.getBoundingClientRect();
-            const clickX = e.clientX;
-            const clickY = e.clientY;
+            // check if click is within the corkboard (in board coordinates)
+            const boardPos = screenToBoard(e.clientX, e.clientY);
 
-            if (clickX >= boardRect.left && clickX <= boardRect.right &&
-                clickY >= boardRect.top && clickY <= boardRect.bottom) {
-                // Click is within board, cancel connection
-                e.stopPropagation(); // Prevent other handlers from running
+            if (boardPos.x >= 0 && boardPos.x <= corkboard.offsetWidth &&
+                boardPos.y >= 0 && boardPos.y <= corkboard.offsetHeight) {
+                // click is within board, cancel connection
+                e.stopPropagation(); // prevent other handlers from running
                 isConnecting = false;
                 connectionStart = null;
                 notes.forEach(note => {
@@ -1100,14 +1357,14 @@ function startConnection(itemId, isMedia = false, position = 'top') {
                     document.removeEventListener('click', cancelOnEmptyClickHandler, true);
                     cancelOnEmptyClickHandler = null;
                 }
-                redrawLines(); // Clear preview line
+                redrawLines(); // clear preview line
             }
         }
     };
 
     document.addEventListener('click', cancelOnEmptyClickHandler, true);
 
-    // Cancel connection on escape
+    // cancel connection on escape
     const cancelConnection = (e) => {
         if (e.key === 'Escape') {
             isConnecting = false;
@@ -1134,12 +1391,12 @@ function startConnection(itemId, isMedia = false, position = 'top') {
                 cancelOnEmptyClickHandler = null;
             }
             document.removeEventListener('keydown', cancelConnection);
-            redrawLines(); // Clear preview line
+            redrawLines(); // clear preview line
         }
     };
 
     document.addEventListener('keydown', cancelConnection);
-    redrawLines(); // Initial draw to show preview
+    redrawLines(); // initial draw to show preview
 }
 
 function cleanupConnectionHandlers() {
@@ -1169,7 +1426,7 @@ function completeConnection(endItemId, endPosition) {
 
     const startItemId = connectionStart.noteId;
 
-    // Don't connect an item to itself
+    // don't connect an item to itself
     if (startItemId === endItemId) {
         isConnecting = false;
         connectionStart = null;
@@ -1190,11 +1447,11 @@ function completeConnection(endItemId, endPosition) {
             document.removeEventListener('mousemove', previewConnectionHandler);
             previewConnectionHandler = null;
         }
-        redrawLines(); // Clear preview line
+        redrawLines(); // clear preview line
         return;
     }
 
-    // Check if connection already exists
+    // check if connection already exists
     const exists = connections.some(conn =>
         (conn.from === startItemId && conn.to === endItemId) ||
         (conn.from === endItemId && conn.to === startItemId)
@@ -1213,7 +1470,7 @@ function completeConnection(endItemId, endPosition) {
     isConnecting = false;
     connectionStart = null;
 
-    // Hide connection points and clean up handlers
+    // hide connection points and clean up handlers
     notes.forEach(note => {
         const noteElement = document.getElementById(`note-${note.id}`);
         if (noteElement) {
@@ -1239,7 +1496,7 @@ function completeConnection(endItemId, endPosition) {
     redrawLines();
 }
 
-// Draw lines between connected notes
+// draw lines between connected notes
 function redrawLines() {
     if (!linesVisible && !isConnecting) {
         ctx.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
@@ -1248,9 +1505,9 @@ function redrawLines() {
 
     ctx.clearRect(0, 0, lineCanvas.width, lineCanvas.height);
 
-    // Draw existing connections
+    // draw existing connections
     connections.forEach(connection => {
-        // Find items (could be notes or media)
+        // find items (could be notes or media)
         let fromItem = notes.find(n => n.id === connection.from);
         let toItem = notes.find(n => n.id === connection.to);
 
@@ -1263,7 +1520,7 @@ function redrawLines() {
 
         if (!fromItem || !toItem) return;
 
-        // Determine if items are media by checking if they're in mediaItems array
+        // determine if items are media by checking if they're in mediaItems array
         const fromIsMedia = mediaItems.some(m => m.id === connection.from);
         const toIsMedia = mediaItems.some(m => m.id === connection.to);
         const fromElementId = fromIsMedia ? `media-${fromItem.id}` : `note-${fromItem.id}`;
@@ -1273,10 +1530,10 @@ function redrawLines() {
 
         if (!fromElement || !toElement) return;
 
-        // Calculate connection points
+        // calculate connection points
         let fromX, fromY, toX, toY;
 
-        // Calculate FROM point (only edge positions)
+        // calculate FROM point (only edge positions)
         if (connection.fromPos === 'top') {
             fromX = fromItem.x + fromElement.offsetWidth / 2;
             fromY = fromItem.y;
@@ -1290,12 +1547,12 @@ function redrawLines() {
             fromX = fromItem.x + fromElement.offsetWidth;
             fromY = fromItem.y + fromElement.offsetHeight / 2;
         } else {
-            // Default to center if position is not recognized
+            // default to center if position is not recognized
             fromX = fromItem.x + fromElement.offsetWidth / 2;
             fromY = fromItem.y + fromElement.offsetHeight / 2;
         }
 
-        // Calculate TO point (only edge positions)
+        // calculate TO point (only edge positions)
         if (connection.toPos === 'top') {
             toX = toItem.x + toElement.offsetWidth / 2;
             toY = toItem.y;
@@ -1309,18 +1566,18 @@ function redrawLines() {
             toX = toItem.x + toElement.offsetWidth;
             toY = toItem.y + toElement.offsetHeight / 2;
         } else {
-            // Default to center if position is not recognized
+            // default to center if position is not recognized
             toX = toItem.x + toElement.offsetWidth / 2;
             toY = toItem.y + toElement.offsetHeight / 2;
         }
 
-        // Draw red string line with a slight curve for realism
+        // draw red string line with a slight curve for realism
         drawRedString(fromX, fromY, toX, toY);
     });
 
-    // Draw preview line if connecting
+    // draw preview line if connecting
     if (isConnecting && connectionStart) {
-        // Find the start item
+        // find the start item
         let startItem;
         if (connectionStart.isMedia) {
             startItem = mediaItems.find(m => m.id === connectionStart.noteId);
@@ -1333,7 +1590,7 @@ function redrawLines() {
             const startElement = document.getElementById(startElementId);
 
             if (startElement) {
-                // Calculate start point
+                // calculate start point
                 let startX, startY;
                 if (connectionStart.position === 'top') {
                     startX = startItem.x + startElement.offsetWidth / 2;
@@ -1352,7 +1609,7 @@ function redrawLines() {
                     startY = startItem.y + startElement.offsetHeight / 2;
                 }
 
-                // Draw preview line to mouse position
+                // draw preview line to mouse position
                 drawRedString(startX, startY, previewMouseX, previewMouseY);
             }
         }
@@ -1360,13 +1617,13 @@ function redrawLines() {
 }
 
 function drawRedString(x1, y1, x2, y2) {
-    // Calculate control point for curve
+    // calculate control point for curve
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
     const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
     const curveAmount = Math.min(distance * 0.08, 25);
 
-    // Deterministic but varied curve based on position (for realism without flickering)
+    // deterministic but varied curve based on position (for realism without flickering)
     const angle = Math.atan2(y2 - y1, x2 - x1);
     const perpendicularAngle = angle + Math.PI / 2;
     const curveOffset = Math.sin((x1 + y1 + x2 + y2) * 0.01) * curveAmount;
@@ -1377,7 +1634,7 @@ function drawRedString(x1, y1, x2, y2) {
     ctx.moveTo(x1, y1);
     ctx.quadraticCurveTo(curveX, curveY, x2, y2);
 
-    // Red string style
+    // red string style
     ctx.strokeStyle = '#c62828';
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
@@ -1385,7 +1642,7 @@ function drawRedString(x1, y1, x2, y2) {
     ctx.shadowBlur = 2;
     ctx.stroke();
 
-    // Add slight shadow/glow
+    // add slight shadow/glow
     ctx.beginPath();
     ctx.moveTo(x1, y1);
     ctx.quadraticCurveTo(curveX, curveY, x2, y2);
@@ -1394,7 +1651,7 @@ function drawRedString(x1, y1, x2, y2) {
     ctx.stroke();
 }
 
-// Update note title
+// update note title
 function updateNoteTitle(noteId, title) {
     const note = notes.find(n => n.id === noteId);
     if (note) {
@@ -1403,7 +1660,7 @@ function updateNoteTitle(noteId, title) {
     }
 }
 
-// Update note content
+// update note content
 function updateNoteContent(noteId, content) {
     const note = notes.find(n => n.id === noteId);
     if (note) {
@@ -1412,9 +1669,9 @@ function updateNoteContent(noteId, content) {
     }
 }
 
-// Highlighter functionality
-const highlighterState = new Map(); // Store highlighter state per note
-const highlighterSaveTimeouts = new Map(); // Store save timeouts per note
+// highlighter functionality
+const highlighterState = new Map(); // store highlighter state per note
+const highlighterSaveTimeouts = new Map(); // store save timeouts per note
 
 function initializeHighlighter(itemId, isMedia = false) {
     let item;
@@ -1446,7 +1703,7 @@ function initializeHighlighter(itemId, isMedia = false) {
     let isDrawing = false;
     let isHighlighting = false;
 
-    // Set canvas size to match image
+    // set canvas size to match image
     function resizeCanvas() {
         const imgRect = img.getBoundingClientRect();
         canvas.width = imgRect.width;
@@ -1454,19 +1711,19 @@ function initializeHighlighter(itemId, isMedia = false) {
 
     }
 
-    // Wait for image to load and redraw highlighter data
+    // wait for image to load and redraw highlighter data
     function loadHighlighterData() {
         resizeCanvas();
-        // Redraw existing highlighter data after canvas is resized
+        // redraw existing highlighter data after canvas is resized
         if (item.highlighterData) {
             setTimeout(() => {
                 const imgData = new Image();
                 imgData.onload = () => {
-                    // Use source-over to draw the saved canvas data
+                    // use source-over to draw the saved canvas data
                     ctx.globalCompositeOperation = 'source-over';
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                     ctx.drawImage(imgData, 0, 0, canvas.width, canvas.height);
-                    ctx.globalCompositeOperation = 'multiply'; // Restore for new highlights
+                    ctx.globalCompositeOperation = 'multiply'; // restore for new highlights
                 };
                 imgData.src = item.highlighterData;
             }, 50);
@@ -1481,11 +1738,11 @@ function initializeHighlighter(itemId, isMedia = false) {
         };
     }
 
-    // Update on window resize
+    // update on window resize
     const resizeObserver = new ResizeObserver(() => {
         const oldData = item.highlighterData;
         resizeCanvas();
-        // Redraw highlighter data after resize
+        // redraw highlighter data after resize
         if (oldData) {
             setTimeout(() => {
                 const imgData = new Image();
@@ -1501,7 +1758,7 @@ function initializeHighlighter(itemId, isMedia = false) {
     });
     resizeObserver.observe(img);
 
-    // Toggle highlighter mode
+    // toggle highlighter mode
     toggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         isHighlighting = !isHighlighting;
@@ -1510,9 +1767,9 @@ function initializeHighlighter(itemId, isMedia = false) {
         canvas.style.pointerEvents = isHighlighting ? 'all' : 'none';
     });
 
-    // Highlighter drawing
+    // highlighter drawing
     function getHighlighterStyle(color) {
-        // Convert hex to rgba with transparency
+        // convert hex to rgba with transparency
         const r = parseInt(color.slice(1, 3), 16);
         const g = parseInt(color.slice(3, 5), 16);
         const b = parseInt(color.slice(5, 7), 16);
@@ -1524,15 +1781,15 @@ function initializeHighlighter(itemId, isMedia = false) {
 
     function drawHighlight(x, y, size, color) {
         ctx.save();
-        ctx.globalCompositeOperation = 'multiply'; // Realistic highlighter effect
+        ctx.globalCompositeOperation = 'multiply'; // realistic highlighter effect
 
-        // Create gradient for realistic highlighter stroke with soft edges
+        // create gradient for realistic highlighter stroke with soft edges
         const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
         const r = parseInt(color.slice(1, 3), 16);
         const g = parseInt(color.slice(3, 5), 16);
         const b = parseInt(color.slice(5, 7), 16);
 
-        // More realistic highlighter: semi-transparent center, fading edges
+        // more realistic highlighter: semi-transparent center, fading edges
         gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.5)`);
         gradient.addColorStop(0.3, `rgba(${r}, ${g}, ${b}, 0.4)`);
         gradient.addColorStop(0.7, `rgba(${r}, ${g}, ${b}, 0.2)`);
@@ -1540,9 +1797,9 @@ function initializeHighlighter(itemId, isMedia = false) {
 
         ctx.fillStyle = gradient;
 
-        // Draw smooth connected strokes if we have a previous point
+        // draw smooth connected strokes if we have a previous point
         if (lastX !== null && lastY !== null) {
-            // Draw a path between points for smooth strokes
+            // draw a path between points for smooth strokes
             ctx.beginPath();
             ctx.moveTo(lastX, lastY);
             ctx.lineTo(x, y);
@@ -1553,7 +1810,7 @@ function initializeHighlighter(itemId, isMedia = false) {
             ctx.stroke();
         }
 
-        // Draw the current highlight point
+        // draw the current highlight point
         ctx.beginPath();
         ctx.arc(x, y, size, 0, Math.PI * 2);
         ctx.fill();
@@ -1587,7 +1844,7 @@ function initializeHighlighter(itemId, isMedia = false) {
         const size = parseInt(sizeInput.value);
         const color = colorInput.value;
         drawHighlight(x, y, size, color);
-        // Throttle saves during drawing for better performance
+        // throttle saves during drawing for better performance
         if (highlighterSaveTimeouts.has(itemId)) {
             clearTimeout(highlighterSaveTimeouts.get(itemId));
         }
@@ -1615,7 +1872,7 @@ function initializeHighlighter(itemId, isMedia = false) {
         }
     });
 
-    // Clear highlights
+    // clear highlights
     if (clearBtn) {
         clearBtn.addEventListener('click', (e) => {
             e.stopPropagation();
@@ -1628,7 +1885,7 @@ function initializeHighlighter(itemId, isMedia = false) {
         });
     }
 
-    // Store highlighter state
+    // store highlighter state
     highlighterState.set(itemId, {
         ctx,
         canvas,
@@ -1654,7 +1911,7 @@ function saveHighlighterData(itemId, isMedia = false) {
     const canvas = itemElement.querySelector('.note-media-canvas');
     if (!canvas) return;
 
-    // Save canvas data as base64
+    // save canvas data as base64
     item.highlighterData = canvas.toDataURL();
     saveToStorage();
 }
@@ -1671,13 +1928,13 @@ function redrawHighlighter(itemId, ctx, width, height, isMedia = false) {
     const img = new Image();
     img.onload = () => {
         ctx.clearRect(0, 0, width, height);
-        // Draw the highlighter canvas data onto the canvas
+        // draw the highlighter canvas data onto the canvas
         ctx.drawImage(img, 0, 0, width, height);
     };
     img.src = item.highlighterData;
 }
 
-// Initialize highlighter after note is rendered and image is loaded
+// initialize highlighter after note is rendered and image is loaded
 function initializeHighlighterAfterLoad(noteId) {
     const note = notes.find(n => n.id === noteId);
     if (!note || !note.mediaDataUrl) return;
@@ -1688,7 +1945,7 @@ function initializeHighlighterAfterLoad(noteId) {
     const img = noteElement.querySelector('.note-media-image');
     if (!img) return;
 
-    // Wait for image to fully load before initializing
+    // wait for image to fully load before initializing
     if (img.complete) {
         setTimeout(() => initializeHighlighter(itemId, isMedia), 100);
     } else {
@@ -1698,7 +1955,7 @@ function initializeHighlighterAfterLoad(noteId) {
     }
 }
 
-// Screenshot/Download functionality
+// screenshot/download functionality
 downloadBtn.addEventListener('click', async () => {
     if (typeof html2canvas === 'undefined') {
         alert('Screenshot functionality is loading. Please try again in a moment.');
@@ -1706,10 +1963,7 @@ downloadBtn.addEventListener('click', async () => {
     }
 
     try {
-        downloadBtn.disabled = true;
-        downloadBtn.textContent = '📸 Capturing...';
-
-        // Capture the corkboard
+        // capture the corkboard
         const canvas = await html2canvas(corkboard, {
             backgroundColor: null,
             scale: 2,
@@ -1720,34 +1974,29 @@ downloadBtn.addEventListener('click', async () => {
             windowHeight: corkboard.scrollHeight
         });
 
-        // Download as image
+        // download as image
         const link = document.createElement('a');
         link.download = `deloosional-board-${new Date().toISOString().split('T')[0]}.png`;
         link.href = canvas.toDataURL('image/png');
         link.click();
-
-        downloadBtn.disabled = false;
-        downloadBtn.textContent = '📸 Download Board';
     } catch (error) {
         console.error('Error capturing screenshot:', error);
         alert('Failed to capture screenshot. Please try again.');
-        downloadBtn.disabled = false;
-        downloadBtn.textContent = '📸 Download Board';
     }
 });
 
-// Delete note
+// delete note
 function deleteNote(noteId) {
     if (confirm('Are you sure you want to delete this note?')) {
-        // Remove connections
+        // remove connections
         connections = connections.filter(conn =>
             conn.from !== noteId && conn.to !== noteId
         );
 
-        // Remove note
+        // remove note
         notes = notes.filter(n => n.id !== noteId);
 
-        // Remove DOM element
+        // remove DOM element
         const noteElement = document.getElementById(`note-${noteId}`);
         if (noteElement) {
             noteElement.remove();
@@ -1758,7 +2007,7 @@ function deleteNote(noteId) {
     }
 }
 
-// Clear all
+// clear all
 clearAllBtn.addEventListener('click', () => {
     if (confirm('Are you sure you want to clear all notes and media? This cannot be undone.')) {
         notes = [];
@@ -1770,13 +2019,13 @@ clearAllBtn.addEventListener('click', () => {
     }
 });
 
-// Toggle string visibility
+// toggle string visibility
 toggleLinesSwitch.addEventListener('change', () => {
     linesVisible = toggleLinesSwitch.checked;
     redrawLines();
 });
 
-// Clear all strings
+// clear all strings
 clearStringsBtn.addEventListener('click', () => {
     if (confirm('Are you sure you want to clear all string connections? This cannot be undone.')) {
         connections = [];
@@ -1785,88 +2034,774 @@ clearStringsBtn.addEventListener('click', () => {
     }
 });
 
-// Save to localStorage
+// save to localStorage (by board ID)
 function saveToStorage() {
+    if (!currentBoardId) return;
+
     try {
-        localStorage.setItem('deloosional-notes', JSON.stringify(notes));
-        localStorage.setItem('deloosional-media', JSON.stringify(mediaItems));
-        localStorage.setItem('deloosional-connections', JSON.stringify(connections));
-        localStorage.setItem('deloosional-noteIdCounter', noteIdCounter.toString());
-        // Save board size
-        const boardWidth = parseInt(corkboard.style.width) || parseInt(getComputedStyle(corkboard).width) || 2000;
-        const boardHeight = parseInt(corkboard.style.height) || parseInt(getComputedStyle(corkboard).height) || 1500;
-        localStorage.setItem('deloosional-boardWidth', boardWidth.toString());
-        localStorage.setItem('deloosional-boardHeight', boardHeight.toString());
+        const boardData = {
+            notes: notes,
+            media: mediaItems,
+            connections: connections,
+            noteIdCounter: noteIdCounter,
+            lastModified: new Date().toISOString()
+        };
+
+        localStorage.setItem(`deloosional-board-${currentBoardId}`, JSON.stringify(boardData));
+
+        // update board metadata
+        updateBoardMetadata(currentBoardId);
+
+        // note: preview generation now happens only when leaving the board (clicking Homepage)
     } catch (e) {
         console.error('Failed to save to storage:', e);
     }
 }
 
-// Load from localStorage
-function loadFromStorage() {
-    try {
-        const savedNotes = localStorage.getItem('deloosional-notes');
-        const savedMedia = localStorage.getItem('deloosional-media');
-        const savedConnections = localStorage.getItem('deloosional-connections');
-        const savedCounter = localStorage.getItem('deloosional-noteIdCounter');
-        const savedBoardWidth = localStorage.getItem('deloosional-boardWidth');
-        const savedBoardHeight = localStorage.getItem('deloosional-boardHeight');
+// generate board preview - simple version that only captures the current board
+function generateBoardPreview(boardId) {
+    if (!boardId || !corkboard || typeof html2canvas === 'undefined') {
+        console.warn('Cannot generate preview: missing boardId, corkboard, or html2canvas');
+        return Promise.resolve();
+    }
 
-        // Load board size
-        if (savedBoardWidth && savedBoardHeight) {
-            const width = parseInt(savedBoardWidth, 10);
-            const height = parseInt(savedBoardHeight, 10);
-            if (width >= 1000 && width <= 5000 && height >= 1000 && height <= 5000) {
-                corkboard.style.width = width + 'px';
-                corkboard.style.height = height + 'px';
-                boardWidthInput.value = width;
-                boardHeightInput.value = height;
+    // Ensure board is visible and rendered before capturing
+    return new Promise((resolve, reject) => {
+        // Wait for all images to load before capturing
+        const images = corkboard.querySelectorAll('img');
+        let imagesToLoad = images.length;
+        let imagesLoaded = 0;
+
+        const checkImagesLoaded = () => {
+            if (imagesToLoad === 0 || imagesLoaded === imagesToLoad) {
+                // All images loaded (or no images), proceed with capture
+                setTimeout(() => {
+                    try {
+                        // Ensure board is still visible
+                        if (corkboard && boardEditor && boardEditor.style.display !== 'none') {
+                            // use html2canvas to capture the corkboard (just the corkboard, not the black background)
+                            html2canvas(corkboard, {
+                                backgroundColor: '#d4a574',
+                                scale: 0.5, // higher quality scale for preview
+                                logging: false,
+                                useCORS: true,
+                                allowTaint: true,
+                                windowWidth: corkboard.scrollWidth,
+                                windowHeight: corkboard.scrollHeight,
+                                onclone: (clonedDoc) => {
+                                    // Ensure all images in the clone are loaded
+                                    const clonedImages = clonedDoc.querySelectorAll('img');
+                                    clonedImages.forEach(img => {
+                                        if (!img.complete) {
+                                            // Force load if not complete
+                                            img.src = img.src;
+                                        }
+                                    });
+                                }
+                            }).then(canvas => {
+                                const previewData = canvas.toDataURL('image/png');
+                                localStorage.setItem(`deloosional-board-preview-${boardId}`, previewData);
+                                // refresh the boards list to show the new preview
+                                renderBoardsList();
+                                resolve(previewData);
+                            }).catch(e => {
+                                console.error('Failed to generate preview:', e);
+                                reject(e);
+                            });
+                        } else {
+                            console.warn('Board is not visible, cannot generate preview');
+                            reject(new Error('Board is not visible'));
+                        }
+                    } catch (error) {
+                        console.error('Error in generateBoardPreview:', error);
+                        reject(error);
+                    }
+                }, 100); // Small delay to ensure DOM is ready after images load
             }
+        };
+
+        // Global timeout to avoid infinite wait (max 3 seconds total)
+        const maxWaitTime = 3000;
+        const timeoutId = setTimeout(() => {
+            if (imagesLoaded < imagesToLoad) {
+                console.warn('Timeout waiting for images to load, proceeding with preview generation');
+                imagesLoaded = imagesToLoad; // Force completion
+                checkImagesLoaded();
+            }
+        }, maxWaitTime);
+
+        if (imagesToLoad === 0) {
+            // No images, proceed immediately
+            clearTimeout(timeoutId);
+            checkImagesLoaded();
+        } else {
+            // Wait for images to load
+            images.forEach(img => {
+                if (img.complete) {
+                    imagesLoaded++;
+                    if (imagesLoaded === imagesToLoad) {
+                        clearTimeout(timeoutId);
+                    }
+                    checkImagesLoaded();
+                } else {
+                    const onImageLoad = () => {
+                        imagesLoaded++;
+                        if (imagesLoaded === imagesToLoad) {
+                            clearTimeout(timeoutId);
+                        }
+                        checkImagesLoaded();
+                    };
+                    img.onload = onImageLoad;
+                    img.onerror = onImageLoad; // Count errors as "loaded" to avoid infinite wait
+                }
+            });
+        }
+    });
+}
+
+// load from localStorage (by board ID)
+function loadFromStorage(boardId) {
+    if (!boardId) return;
+
+    try {
+        // clear current board
+        clearBoard();
+
+        const savedData = localStorage.getItem(`deloosional-board-${boardId}`);
+        if (!savedData) {
+            // new board - initialize with defaults
+            notes = [];
+            mediaItems = [];
+            connections = [];
+            noteIdCounter = 0;
+            // board size is fixed at 2000x1500
+            currentBoardId = boardId;
+            setTimeout(() => {
+                initCanvas();
+                initZoom();
+            }, 100);
+            return;
         }
 
-        if (savedNotes) {
-            notes = JSON.parse(savedNotes);
+        const boardData = JSON.parse(savedData);
+
+        // board size is now fixed at 2000x1500, no need to load dimensions
+
+        if (boardData.notes) {
+            notes = boardData.notes;
             notes.forEach(note => {
-                // Ensure old notes have width and height
+                // ensure old notes have width and height
                 if (!note.width) note.width = 200;
                 if (!note.height) note.height = 150;
                 renderNote(note);
             });
         }
 
-        if (savedMedia) {
-            mediaItems = JSON.parse(savedMedia);
+        if (boardData.media) {
+            mediaItems = boardData.media;
             mediaItems.forEach(mediaItem => {
                 renderMediaItem(mediaItem);
             });
         }
 
-        if (savedConnections) {
-            connections = JSON.parse(savedConnections);
+        if (boardData.connections) {
+            connections = boardData.connections;
         }
 
-        if (savedCounter) {
-            noteIdCounter = parseInt(savedCounter, 10);
+        if (boardData.noteIdCounter) {
+            noteIdCounter = parseInt(boardData.noteIdCounter, 10);
         }
 
-        // Set toggle switch state based on linesVisible
+        // set toggle switch state based on linesVisible
         if (toggleLinesSwitch) {
             toggleLinesSwitch.checked = linesVisible;
         }
 
-        // Initialize canvas after loading
+        currentBoardId = boardId;
+
+        // initialize canvas and zoom after loading
         setTimeout(() => {
             initCanvas();
+            initZoom();
+            // note: preview generation now happens only when leaving the board
         }, 100);
     } catch (e) {
         console.error('Failed to load from storage:', e);
     }
 }
 
-// Redraw lines when notes are moved or updated
+// clear current board (without saving)
+function clearBoard() {
+    notes = [];
+    mediaItems = [];
+    connections = [];
+    noteIdCounter = 0;
+    notesContainer.innerHTML = '';
+    redrawLines();
+}
+
+// redraw lines when notes are moved or updated
 setInterval(() => {
     if (isDragging) {
         redrawLines();
     }
 }, 50);
+
+// board management functions
+function getAllBoards() {
+    const boards = [];
+    for (let i = 1; i <= MAX_BOARDS; i++) {
+        const boardData = localStorage.getItem(`deloosional-board-${i}`);
+        const metadata = localStorage.getItem(`deloosional-board-metadata-${i}`);
+
+        if (boardData || metadata) {
+            let boardInfo = {
+                id: i,
+                name: `Board ${i}`,
+                lastModified: null,
+                isEmpty: !boardData
+            };
+
+            if (metadata) {
+                try {
+                    const meta = JSON.parse(metadata);
+                    boardInfo.name = meta.name || boardInfo.name;
+                    boardInfo.lastModified = meta.lastModified || null;
+                } catch (e) {
+                    console.error('Failed to parse board metadata:', e);
+                }
+            } else if (boardData) {
+                try {
+                    const data = JSON.parse(boardData);
+                    boardInfo.lastModified = data.lastModified || null;
+                } catch (e) {
+                    console.error('Failed to parse board data:', e);
+                }
+            }
+
+            boards.push(boardInfo);
+        } else {
+            boards.push({
+                id: i,
+                name: `Board ${i}`,
+                lastModified: null,
+                isEmpty: true
+            });
+        }
+    }
+    return boards;
+}
+
+function updateBoardMetadata(boardId) {
+    if (!boardId) return;
+
+    try {
+        const boardData = localStorage.getItem(`deloosional-board-${boardId}`);
+        const existingMetadata = localStorage.getItem(`deloosional-board-metadata-${boardId}`);
+
+        let name = `Board ${boardId}`;
+        if (existingMetadata) {
+            try {
+                const meta = JSON.parse(existingMetadata);
+                name = meta.name || name;
+            } catch (e) {
+                // use default name
+            }
+        }
+
+        if (boardData) {
+            const data = JSON.parse(boardData);
+            const metadata = {
+                name: name,
+                lastModified: data.lastModified || new Date().toISOString()
+            };
+            localStorage.setItem(`deloosional-board-metadata-${boardId}`, JSON.stringify(metadata));
+        }
+    } catch (e) {
+        console.error('Failed to update board metadata:', e);
+    }
+}
+
+function renameBoard(boardId, newName) {
+    if (!boardId || !newName || newName.trim() === '') return;
+
+    try {
+        const existingMetadata = localStorage.getItem(`deloosional-board-metadata-${boardId}`);
+        let metadata = {
+            name: newName.trim(),
+            lastModified: new Date().toISOString()
+        };
+
+        if (existingMetadata) {
+            try {
+                const meta = JSON.parse(existingMetadata);
+                metadata.lastModified = meta.lastModified || metadata.lastModified;
+            } catch (e) {
+                // use new metadata
+            }
+        }
+
+        localStorage.setItem(`deloosional-board-metadata-${boardId}`, JSON.stringify(metadata));
+    } catch (e) {
+        console.error('Failed to rename board:', e);
+    }
+}
+
+function createBoard() {
+    // find first empty slot
+    for (let i = 1; i <= MAX_BOARDS; i++) {
+        const boardData = localStorage.getItem(`deloosional-board-${i}`);
+        if (!boardData) {
+            // found empty slot
+            const boardId = i;
+            const metadata = {
+                name: `Board ${boardId}`,
+                lastModified: new Date().toISOString()
+            };
+            localStorage.setItem(`deloosional-board-metadata-${boardId}`, JSON.stringify(metadata));
+            return boardId;
+        }
+    }
+    // all slots full - use first slot
+    return 1;
+}
+
+function deleteBoard(boardId) {
+    if (!boardId) return;
+
+    try {
+        localStorage.removeItem(`deloosional-board-${boardId}`);
+        localStorage.removeItem(`deloosional-board-metadata-${boardId}`);
+        localStorage.removeItem(`deloosional-board-preview-${boardId}`);
+    } catch (e) {
+        console.error('Failed to delete board:', e);
+    }
+}
+
+function startRenamingBoard(boardId, boardCard) {
+    const nameElement = boardCard.querySelector('.board-card-name');
+    if (!nameElement) return;
+
+    const currentName = nameElement.textContent;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'board-card-name-input';
+    input.value = currentName;
+    input.maxLength = 50;
+
+    let isFinishing = false;
+    const finishRenaming = () => {
+        if (isFinishing) return; // Prevent double execution
+        isFinishing = true;
+
+        const newName = input.value.trim();
+        if (newName && newName !== currentName) {
+            renameBoard(boardId, newName);
+            renderBoardsList();
+        } else {
+            // Restore the original name element
+            const restoredName = document.createElement('div');
+            restoredName.className = 'board-card-name';
+            restoredName.setAttribute('data-board-id', boardId);
+            restoredName.textContent = currentName;
+            input.replaceWith(restoredName);
+        }
+    };
+
+    input.addEventListener('blur', () => {
+        // Only handle blur if we're not already finishing (e.g., from Enter key)
+        if (!isFinishing) {
+            finishRenaming();
+        }
+    });
+
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            isFinishing = false; // Reset flag to allow execution
+            finishRenaming();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            isFinishing = true; // Prevent blur from firing
+            // Restore the original name element
+            const restoredName = document.createElement('div');
+            restoredName.className = 'board-card-name';
+            restoredName.setAttribute('data-board-id', boardId);
+            restoredName.textContent = currentName;
+            input.replaceWith(restoredName);
+        }
+    });
+
+    nameElement.replaceWith(input);
+    input.focus();
+    input.select();
+}
+
+function renderBoardsList() {
+    if (!boardsList) return;
+
+    boardsList.innerHTML = '';
+    const boards = getAllBoards();
+
+    boards.forEach(board => {
+        const boardCard = document.createElement('div');
+        boardCard.className = `board-card ${board.isEmpty ? 'empty' : ''}`;
+
+        if (board.isEmpty) {
+            boardCard.innerHTML = `
+                <div class="board-card-name">Empty Slot</div>
+            `;
+            boardCard.addEventListener('click', () => {
+                // Use this slot's ID
+                const metadata = {
+                    name: `Board ${board.id}`,
+                    lastModified: new Date().toISOString()
+                };
+                localStorage.setItem(`deloosional-board-metadata-${board.id}`, JSON.stringify(metadata));
+                openBoard(board.id);
+            });
+        } else {
+            const dateStr = board.lastModified
+                ? new Date(board.lastModified).toLocaleDateString()
+                : 'No date';
+
+            // Get preview if available
+            const previewData = localStorage.getItem(`deloosional-board-preview-${board.id}`);
+            const previewHtml = previewData
+                ? `<div class="board-card-preview"><img src="${previewData}" alt="Board preview"></div>`
+                : `<div class="board-card-preview empty">No preview</div>`;
+
+            boardCard.innerHTML = `
+                <button class="board-card-rename" data-board-id="${board.id}" title="Rename Board">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+                        <path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" />
+                        <path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415z" />
+                        <path d="M16 5l3 3" />
+                    </svg>
+                </button>
+                <button class="board-card-delete" data-board-id="${board.id}" title="Delete Board">&times;</button>
+                ${previewHtml}
+                <div class="board-card-name" data-board-id="${board.id}">${board.name}</div>
+                <div class="board-card-date">Last modified: ${dateStr}</div>
+            `;
+
+            boardCard.addEventListener('click', (e) => {
+                if (!e.target.closest('.board-card-delete') &&
+                    !e.target.closest('.board-card-rename') &&
+                    !e.target.closest('.board-card-name-input')) {
+                    openBoard(board.id);
+                }
+            });
+
+            const deleteBtn = boardCard.querySelector('.board-card-delete');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Are you sure you want to delete ${board.name}?`)) {
+                        deleteBoard(board.id);
+                        renderBoardsList();
+                    }
+                });
+            }
+
+            const renameBtn = boardCard.querySelector('.board-card-rename');
+            if (renameBtn) {
+                renameBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    startRenamingBoard(board.id, boardCard);
+                });
+            }
+
+            const nameElement = boardCard.querySelector('.board-card-name');
+            if (nameElement) {
+                nameElement.addEventListener('dblclick', (e) => {
+                    e.stopPropagation();
+                    startRenamingBoard(board.id, boardCard);
+                });
+            }
+        }
+
+        boardsList.appendChild(boardCard);
+    });
+}
+
+function showWelcomePage() {
+    if (welcomePage) welcomePage.style.display = 'flex';
+    if (boardEditor) boardEditor.style.display = 'none';
+    renderBoardsList();
+    // Replace current state with welcome page state (so back button works correctly)
+    if (window.history && window.history.replaceState) {
+        window.history.replaceState({ page: 'welcome' }, '', window.location.pathname);
+    }
+}
+
+function showBoardEditor() {
+    if (welcomePage) welcomePage.style.display = 'none';
+    if (boardEditor) boardEditor.style.display = 'block';
+}
+
+function openBoard(boardId) {
+    if (!boardId) return;
+
+    // Save current board before switching
+    if (currentBoardId) {
+        saveToStorage();
+    }
+
+    loadFromStorage(boardId);
+    showBoardEditor();
+
+    // Push state to history so browser back button works
+    if (window.history && window.history.pushState) {
+        window.history.pushState({ page: 'board', boardId: boardId }, '', `#board-${boardId}`);
+    }
+}
+
+// Event listeners for welcome page
+if (createNewBoardBtn) {
+    createNewBoardBtn.addEventListener('click', () => {
+        const newBoardId = createBoard();
+        openBoard(newBoardId);
+    });
+}
+
+// Unified function to exit board and generate preview
+function exitBoardAndGeneratePreview() {
+    if (!currentBoardId) {
+        showWelcomePage();
+        return;
+    }
+
+    const boardIdToPreview = currentBoardId; // Store board ID before clearing
+
+    // Save current board state first
+    saveToStorage();
+
+    // Wait 500ms to ensure all saves are complete and DOM is ready
+    setTimeout(() => {
+        // Generate preview while board is still visible
+        // Add a timeout to ensure we don't wait forever
+        const previewTimeout = setTimeout(() => {
+            console.warn('Preview generation timeout, showing welcome page anyway');
+            showWelcomePage();
+        }, 5000); // Maximum 5 seconds wait time
+
+        generateBoardPreview(boardIdToPreview)
+            .then(() => {
+                clearTimeout(previewTimeout);
+                // Preview generated successfully, now show welcome page
+                showWelcomePage();
+            })
+            .catch((error) => {
+                clearTimeout(previewTimeout);
+                console.error('Preview generation failed, but showing welcome page anyway:', error);
+                // Show welcome page even if preview fails
+                showWelcomePage();
+            });
+    }, 500);
+}
+
+if (backToWelcomeBtn) {
+    backToWelcomeBtn.addEventListener('click', () => {
+        exitBoardAndGeneratePreview();
+    });
+}
+
+// Logo click to go back to homepage
+if (logo) {
+    logo.addEventListener('click', () => {
+        exitBoardAndGeneratePreview();
+    });
+    logo.style.cursor = 'pointer';
+}
+
+// Track if we're handling navigation manually to avoid recursion
+let isHandlingNavigation = false;
+
+// Handle browser back/forward button
+window.addEventListener('popstate', (event) => {
+    if (isHandlingNavigation) {
+        return; // Avoid recursion
+    }
+
+    // When user navigates back from a board, exit the board and generate preview
+    // Check if we're currently viewing a board (boardEditor is visible)
+    if (currentBoardId && boardEditor && boardEditor.style.display !== 'none') {
+        // We're navigating away from a board, so exit it and generate preview
+        isHandlingNavigation = true;
+        exitBoardAndGeneratePreview();
+        // Reset flag after a delay to allow navigation to complete
+        setTimeout(() => {
+            isHandlingNavigation = false;
+        }, 1000);
+    } else if (event.state && event.state.page === 'board' && event.state.boardId) {
+        // If we're navigating to a board from history, open it
+        // This handles forward navigation
+        isHandlingNavigation = true;
+        openBoard(event.state.boardId);
+        setTimeout(() => {
+            isHandlingNavigation = false;
+        }, 100);
+    } else {
+        // Navigating to welcome page - ensure it's shown
+        if (welcomePage && welcomePage.style.display === 'none') {
+            showWelcomePage();
+        }
+    }
+});
+
+// Rotating title sentences
+const titleSentences = [
+    "Where ideas connect like clues.",
+    "Every thought's a thread — start untangling.",
+    "The board is yours. Start connecting the dots.",
+    "Ideas don't exist alone. Find what ties them together.",
+    "Step into the investigation of ideas.",
+    "Every board hides a story — uncover it.",
+    "Trace the red string. Find the pattern.",
+    "Nothing is random. Everything connects.",
+    "It's not obsession — it's analysis.",
+    "Get tangled in your thoughts — deliberately.",
+    "Build your conspiracy of concepts.",
+    "Connect chaos into meaning.",
+    "Trace the red string of ideas."
+];
+
+let currentTitleIndex = 0;
+let titleScrambleInterval = null;
+let usedIndices = []; // Track which quotes have been shown
+
+// Random character generator for scrambling effect (lowercase letters only)
+function getRandomChar() {
+    const chars = 'abcdefghijklmnopqrstuvwxyz';
+    return chars[Math.floor(Math.random() * chars.length)];
+}
+
+// Scramble text effect - transitions from current text to target text
+function scrambleText(element, targetText, onComplete) {
+    const currentText = element.textContent || '';
+    const currentLength = currentText.length;
+    const targetLength = targetText.length;
+    let iterations = 0;
+    const maxIterations = 15; // 15 iterations for 1.5 second duration (slower)
+    const maxShufflesPerChar = 1; // Each character only shuffles 1 time (slower appearance)
+
+    // Calculate how many iterations to spend on length transition
+    const lengthDiff = Math.abs(targetLength - currentLength);
+    const lengthTransitionIterations = Math.min(Math.ceil(lengthDiff / 2), 3); // Use up to 3 iterations for length transition
+    const shuffleStartIteration = lengthTransitionIterations;
+    const effectiveMaxIterations = maxIterations - shuffleStartIteration;
+
+    // Pre-calculate random shuffle start times for each character position
+    // This creates the organic effect where random characters start shuffling at different times
+    const charShuffleStarts = [];
+    for (let i = 0; i < targetLength; i++) {
+        // Random start time spread across the shuffle phase
+        // Characters will start shuffling at random times between 0 and effectiveMaxIterations
+        const randomStart = Math.random() * effectiveMaxIterations;
+        charShuffleStarts[i] = Math.floor(randomStart);
+    }
+
+    if (titleScrambleInterval) {
+        clearInterval(titleScrambleInterval);
+    }
+
+    titleScrambleInterval = setInterval(() => {
+        // Calculate current target length (gradually transition from current to target)
+        let currentTargetLength;
+        if (iterations < lengthTransitionIterations) {
+            // Gradually transition length
+            const progress = iterations / lengthTransitionIterations;
+            currentTargetLength = Math.round(currentLength + (targetLength - currentLength) * progress);
+        } else {
+            currentTargetLength = targetLength;
+        }
+
+        let scrambled = '';
+        for (let i = 0; i < currentTargetLength; i++) {
+            // Preserve spaces and punctuation immediately - no shuffling
+            if (i < targetLength && (targetText[i] === ' ' || targetText[i].match(/[.,!?;:—]/))) {
+                scrambled += targetText[i];
+            } else {
+                // Only start shuffling after length transition is complete
+                const adjustedIterations = Math.max(0, iterations - shuffleStartIteration);
+
+                // Use pre-calculated random shuffle start time for this character
+                const charShuffleStart = i < charShuffleStarts.length ? charShuffleStarts[i] : 0;
+                const charRevealStart = charShuffleStart + maxShufflesPerChar;
+
+                if (iterations < shuffleStartIteration || adjustedIterations < charShuffleStart) {
+                    // Before shuffle starts (or during length transition), show scrambled character
+                    scrambled += getRandomChar();
+                } else if (adjustedIterations >= charShuffleStart && adjustedIterations < charRevealStart) {
+                    // During shuffle phase, show random characters
+                    scrambled += getRandomChar();
+                } else if (i < targetLength) {
+                    // After shuffle, reveal the actual character from target text
+                    scrambled += targetText[i];
+                } else {
+                    // Extra characters during length transition
+                    scrambled += getRandomChar();
+                }
+            }
+        }
+
+        element.textContent = scrambled;
+        iterations++;
+
+        if (iterations >= maxIterations) {
+            clearInterval(titleScrambleInterval);
+            element.textContent = targetText;
+            if (onComplete) onComplete();
+        }
+    }, 100); // 100ms interval for 1.5 second total (15 iterations × 100ms = 1500ms)
+}
+
+// Rotate title sentences (random order)
+function rotateTitle() {
+    const titleElement = document.getElementById('rotatingTitle');
+    if (!titleElement) return;
+
+    // If we've shown all quotes, reset the used indices
+    if (usedIndices.length >= titleSentences.length) {
+        usedIndices = [];
+    }
+
+    // Get a random sentence that hasn't been shown recently
+    let nextIndex;
+    do {
+        nextIndex = Math.floor(Math.random() * titleSentences.length);
+    } while (usedIndices.includes(nextIndex) && usedIndices.length < titleSentences.length);
+
+    usedIndices.push(nextIndex);
+    currentTitleIndex = nextIndex;
+    const nextSentence = titleSentences[nextIndex];
+
+    // Apply scramble effect
+    scrambleText(titleElement, nextSentence);
+}
+
+// Initialize - show welcome page on load
+document.addEventListener('DOMContentLoaded', () => {
+    // Initialize history state for welcome page
+    if (window.history && window.history.replaceState) {
+        window.history.replaceState({ page: 'welcome' }, '', window.location.pathname);
+    }
+
+    showWelcomePage();
+
+    // Set initial title to first sentence
+    const titleElement = document.getElementById('rotatingTitle');
+    if (titleElement && titleSentences.length > 0) {
+        titleElement.textContent = titleSentences[0];
+        currentTitleIndex = 0;
+    }
+
+    // Start rotating titles every 10 seconds (double the time)
+    setTimeout(() => {
+        rotateTitle(); // First rotation after 10 seconds
+        setInterval(rotateTitle, 10000); // Then every 10 seconds
+    }, 10000);
+});
 

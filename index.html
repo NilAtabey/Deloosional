@@ -14,131 +14,188 @@
 </head>
 
 <body>
-    <div class="board-container">
-        <div id="corkboard" class="corkboard">
-            <canvas id="lineCanvas"></canvas>
-            <div id="notesContainer" class="notes-container"></div>
-        </div>
-    </div>
+    <!-- Welcome Page -->
+    <div id="welcomePage" class="welcome-page">
+        <div class="welcome-content">
+            <img src="graphics/deloosional-logo2.png" alt="Deloosional logo" class="welcome-logo">
+            <h1 class="welcome-title" id="rotatingTitle">Where ideas connect like clues.</h1>
+            <p class="welcome-subtitle">Every topic is a mystery and every clue is a concept.<br>Connect the dots, get
+                <span class="deloosional-styled">de<span class="deloosional-red">loos</span>sional</span>.
+            </p>
 
-    <!-- Bottom bar -->
-    <div class="bottom-bar">
-        <div class="bottom-bar-left">
-            <img id="logo" src="graphics/deloosional-logo2.png" alt="Deloosional logo">
-        </div>
-        <div class="bottom-bar-right">
-            <button id="addNoteBtn" class="icon-btn" title="Add Note">
-                <span class="icon-btn-icon">
+
+            <div class="boards-section">
+                <h2 class="boards-title">Your Boards</h2>
+                <div id="boardsList" class="boards-list">
+                    <!-- Boards will be dynamically added here -->
+                </div>
+                <button id="createNewBoardBtn" class="create-board-btn">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                         <path d="M12 5l0 14" />
                         <path d="M5 12l14 0" />
                     </svg>
-                </span>
-                <span class="icon-btn-text">Add Note</span>
-            </button>
-            <button id="addMediaBtn" class="icon-btn" title="Attach Media">
-                <span class="icon-btn-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M15 8h.01" />
-                        <path d="M6 13l2.644 -2.644a1.21 1.21 0 0 1 1.712 0l3.644 3.644" />
-                        <path d="M13 13l1.644 -1.644a1.21 1.21 0 0 1 1.712 0l1.644 1.644" />
-                        <path d="M4 8v-2a2 2 0 0 1 2 -2h2" />
-                        <path d="M4 16v2a2 2 0 0 0 2 2h2" />
-                        <path d="M16 4h2a2 2 0 0 1 2 2v2" />
-                        <path d="M16 20h2a2 2 0 0 0 2 -2v-2" />
-                    </svg>
-                </span>
-                <span class="icon-btn-text">Attach Media</span>
-            </button>
-            <button id="resizeBoardBtn" class="icon-btn" title="Resize Board">
-                <span class="icon-btn-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path
-                            d="M4 11v8a1 1 0 0 0 1 1h8m-9 -14v-1a1 1 0 0 1 1 -1h1m5 0h2m5 0h1a1 1 0 0 1 1 1v1m0 5v2m0 5v1a1 1 0 0 1 -1 1h-1" />
-                        <path d="M4 12h7a1 1 0 0 1 1 1v7" />
-                    </svg>
-                </span>
-                <span class="icon-btn-text">Resize Board</span>
-            </button>
-            <label class="icon-btn toggle-icon-btn" title="Toggle Strings">
-                <input type="checkbox" id="toggleLinesSwitch" checked style="display: none;">
-                <span class="icon-btn-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M6 14v-6a3 3 0 1 1 6 0v8a3 3 0 0 0 6 0v-6" />
-                        <path d="M16 3m0 2a2 2 0 0 1 2 -2h0a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h0a2 2 0 0 1 -2 -2z" />
-                        <path d="M4 14m0 2a2 2 0 0 1 2 -2h0a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h0a2 2 0 0 1 -2 -2z" />
-                    </svg>
-                </span>
-                <span class="icon-btn-text">Toggle Strings</span>
-            </label>
-            <button id="clearStringsBtn" class="icon-btn icon-btn-danger" title="Cut All Strings">
-                <span class="icon-btn-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M6 7m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-                        <path d="M6 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
-                        <path d="M8.6 8.6l10.4 10.4" />
-                        <path d="M8.6 15.4l10.4 -10.4" />
-                    </svg>
-                </span>
-                <span class="icon-btn-text">Cut All Strings</span>
-            </button>
-            <button id="clearAllBtn" class="icon-btn icon-btn-danger" title="Clear All">
-                <span class="icon-btn-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M4 7l16 0" />
-                        <path d="M10 11l0 6" />
-                        <path d="M14 11l0 6" />
-                        <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
-                        <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
-                    </svg>
-                </span>
-                <span class="icon-btn-text">Clear All</span>
-            </button>
-            <button id="downloadBtn" class="icon-btn icon-btn-warning" title="Download Board">
-                <span class="icon-btn-icon">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
-                        <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
-                        <path d="M7 11l5 5l5 -5" />
-                        <path d="M12 4l0 12" />
-                    </svg>
-                </span>
-                <span class="icon-btn-text">Download Board</span>
-            </button>
+                    Create New Board
+                </button>
+            </div>
         </div>
     </div>
 
-    <!-- Resize board modal -->
-    <div id="resizeModal" class="modal">
-        <div class="modal-content">
-            <span class="close-resize">&times;</span>
-            <h2>Resize Board</h2>
-            <label for="boardWidth">Width:</label>
-            <input type="number" id="boardWidth" min="1000" max="5000" value="2000" step="100">
-            <label for="boardHeight">Height:</label>
-            <input type="number" id="boardHeight" min="1000" max="5000" value="1500" step="100">
-            <button id="confirmResizeBtn" class="btn btn-primary">Resize Board</button>
+    <!-- Board Editor (hidden by default) -->
+    <div id="boardEditor" class="board-editor" style="display: none;">
+        <div class="board-container">
+            <div id="zoomContainer" class="zoom-container">
+                <div id="corkboard" class="corkboard">
+                    <canvas id="lineCanvas"></canvas>
+                    <div id="notesContainer" class="notes-container"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom bar -->
+        <div class="bottom-bar">
+            <div class="bottom-bar-left">
+                <img id="logo" src="graphics/deloosional-logo2.png" alt="Deloosional logo">
+            </div>
+            <div class="bottom-bar-right">
+                <button id="backToWelcomeBtn" class="icon-btn" title="Homepage">
+                    <span class="icon-btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M5 12l14 0" />
+                            <path d="M5 12l6 6" />
+                            <path d="M5 12l6 -6" />
+                        </svg>
+                    </span>
+                    <span class="icon-btn-text">Homepage</span>
+                </button>
+                <button id="addNoteBtn" class="icon-btn icon-btn-zoom" title="Add Note">
+                    <span class="icon-btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="icon icon-tabler icons-tabler-outline icon-tabler-note">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M13 20l7 -7" />
+                            <path
+                                d="M13 20v-6a1 1 0 0 1 1 -1h6v-7a2 2 0 0 0 -2 -2h-12a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7" />
+                        </svg>
+                    </span>
+                </button>
+                <button id="addMediaBtn" class="icon-btn icon-btn-zoom" title="Add Media">
+                    <span class="icon-btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M15 8h.01" />
+                            <path d="M6 13l2.644 -2.644a1.21 1.21 0 0 1 1.712 0l3.644 3.644" />
+                            <path d="M13 13l1.644 -1.644a1.21 1.21 0 0 1 1.712 0l1.644 1.644" />
+                            <path d="M4 8v-2a2 2 0 0 1 2 -2h2" />
+                            <path d="M4 16v2a2 2 0 0 0 2 2h2" />
+                            <path d="M16 4h2a2 2 0 0 1 2 2v2" />
+                            <path d="M16 20h2a2 2 0 0 0 2 -2v-2" />
+                        </svg>
+                    </span>
+                </button>
+                <button id="zoomInBtn" class="icon-btn icon-btn-zoom" title="Zoom In">
+                    <span class="icon-btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+                            <path d="M21 21l-6 -6" />
+                            <path d="M10 7l0 6" />
+                            <path d="M7 10l6 0" />
+                        </svg>
+                    </span>
+                </button>
+                <button id="zoomOutBtn" class="icon-btn icon-btn-zoom" title="Zoom Out">
+                    <span class="icon-btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+                            <path d="M21 21l-6 -6" />
+                            <path d="M7 10l6 0" />
+                        </svg>
+                    </span>
+                </button>
+                <button id="resetZoomBtn" class="icon-btn icon-btn-zoom" title="Reset Zoom">
+                    <span class="icon-btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="icon icon-tabler icons-tabler-outline icon-tabler-zoom-cancel">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+                            <path d="M8 8l4 4" />
+                            <path d="M12 8l-4 4" />
+                            <path d="M21 21l-6 -6" />
+                        </svg>
+                    </span>
+                </button>
+                <label class="icon-btn toggle-icon-btn" title="Toggle Strings">
+                    <input type="checkbox" id="toggleLinesSwitch" checked style="display: none;">
+                    <span class="icon-btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M6 14v-6a3 3 0 1 1 6 0v8a3 3 0 0 0 6 0v-6" />
+                            <path d="M16 3m0 2a2 2 0 0 1 2 -2h0a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h0a2 2 0 0 1 -2 -2z" />
+                            <path d="M4 14m0 2a2 2 0 0 1 2 -2h0a2 2 0 0 1 2 2v3a2 2 0 0 1 -2 2h0a2 2 0 0 1 -2 -2z" />
+                        </svg>
+                    </span>
+                    <span class="icon-btn-text">Toggle Strings</span>
+                </label>
+                <button id="clearStringsBtn" class="icon-btn icon-btn-danger" title="Cut All Strings">
+                    <span class="icon-btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M6 7m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                            <path d="M6 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+                            <path d="M8.6 8.6l10.4 10.4" />
+                            <path d="M8.6 15.4l10.4 -10.4" />
+                        </svg>
+                    </span>
+                    <span class="icon-btn-text">Cut All Strings</span>
+                </button>
+                <button id="clearAllBtn" class="icon-btn icon-btn-danger" title="Clear All">
+                    <span class="icon-btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M4 7l16 0" />
+                            <path d="M10 11l0 6" />
+                            <path d="M14 11l0 6" />
+                            <path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" />
+                            <path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" />
+                        </svg>
+                    </span>
+                    <span class="icon-btn-text">Clear All</span>
+                </button>
+                <button id="downloadBtn" class="icon-btn icon-btn-warning" title="Download">
+                    <span class="icon-btn-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                            <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2" />
+                            <path d="M7 11l5 5l5 -5" />
+                            <path d="M12 4l0 12" />
+                        </svg>
+                    </span>
+                    <span class="icon-btn-text">Download</span>
+                </button>
+            </div>
         </div>
     </div>
+
 
     <!-- Note creation modal -->
     <div id="noteModal" class="modal">
         <div class="modal-content">
             <span class="close">&times;</span>
-            <h2>Create New Note</h2>
+            <h2 id="noteModalTitle">Create New Note</h2>
             <label for="noteTitle">Title:</label>
             <input type="text" id="noteTitle" placeholder="Enter note title..." autofocus>
             <label for="noteContent">Content:</label>
@@ -151,8 +208,24 @@
                 <option value="theory">🔬 Theory</option>
             </select>
             <label for="noteColor">Color:</label>
-            <input type="color" id="noteColor" value="#ffeb3b" title="Choose note color">
-            <button id="createNoteBtn" class="btn btn-primary">Create Note</button>
+            <div class="modal-color-actions">
+                <input type="color" id="noteColor" value="#ffeb3b" title="Choose note color">
+                <button id="createNoteBtn" class="modal-circular-btn" title="Create Note">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M12 5l0 14" />
+                        <path d="M5 12l14 0" />
+                    </svg>
+                </button>
+                <button id="updateNoteBtn" class="modal-circular-btn" style="display: none;" title="Save Note">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M5 12l5 5l10 -10" />
+                    </svg>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -160,11 +233,11 @@
     <div id="mediaModal" class="modal">
         <div class="modal-content">
             <span class="close-media">&times;</span>
-            <h2>Attach Media</h2>
+            <h2>Add Media</h2>
             <label for="mediaUpload">Select Image:</label>
             <input type="file" id="mediaUpload" accept="image/*">
             <div id="mediaPreview" class="media-preview"></div>
-            <button id="createMediaBtn" class="btn btn-primary">Attach Media</button>
+            <button id="createMediaBtn" class="btn btn-primary">Add Media</button>
         </div>
     </div>
 
