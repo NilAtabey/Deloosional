@@ -2,8 +2,6 @@
   <img src="graphics/deloosional-logo2.png" alt="Deloosional Logo" width="400">
 </div>
 
-# Deloosional
-
 A detective-themed investigation board application that transforms studying into an interactive investigation. No frameworks, no backend, no dependencies beyond the browser-just pure client-side code solving the case of ineffective note-taking.
 
 ![Homepage](app-screenshots/image0.png)
