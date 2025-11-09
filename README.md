@@ -4,7 +4,7 @@
 
 # Deloosional
 
-A detective-themed investigation board application that transforms studying into an interactive investigation. No frameworks, no backend, no dependencies beyond the browser—just pure client-side code solving the case of ineffective note-taking.
+A detective-themed investigation board application that transforms studying into an interactive investigation. No frameworks, no backend, no dependencies beyond the browser-just pure client-side code solving the case of ineffective note-taking.
 
 ![Homepage](app-screenshots/image0.png)
 
@@ -72,8 +72,6 @@ cd Deloosional
 # Open index.html in browser - case opens immediately
 ```
 
-The evidence is in the code—no compilation needed.
-
 ## Project Structure
 
 ```
@@ -93,7 +91,7 @@ Deloosional/
 
 **Canvas Rendering:** Connection lines redraw on every state change (note move, zoom, pan) using a clear-and-redraw pattern. Performance remains acceptable due to small element count (typical boards < 50 elements).
 
-**Coordinate Systems:** The application maintains two coordinate spaces—viewport coordinates (screen pixels) and board coordinates (corkboard pixels). Transform matrices convert between spaces for accurate click detection during zoom/pan operations.
+**Coordinate Systems:** The application maintains two coordinate spaces-viewport coordinates (screen pixels) and board coordinates (corkboard pixels). Transform matrices convert between spaces for accurate click detection during zoom/pan operations.
 
 ## License
 
@@ -103,4 +101,4 @@ Copyright (c) 2025 Beray Nil Atabey
 
 ---
 
-*"The game is afoot, and every clue deserves a connection."*
+*"Come, Watson! The Game is Afoot!"*
