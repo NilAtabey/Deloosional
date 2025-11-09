@@ -609,6 +609,93 @@ mediaUpload.addEventListener('change', (e) => {
     }
 });
 
+// Drag and drop functionality for media upload
+let dragCounter = 0; // Track drag enter/leave events to handle nested elements
+let isDraggingFiles = false; // Track if we're currently dragging files
+
+if (corkboard) {
+    // Handle drag events on the corkboard and its container
+    const handleDragEvent = (e, eventName) => {
+        // Only handle if we're in the board editor
+        if (boardEditor.style.display === 'none') return;
+
+        // Only process file drags (not dragging notes/media items)
+        const hasFiles = e.dataTransfer && e.dataTransfer.types && e.dataTransfer.types.includes('Files');
+        if (!hasFiles && eventName !== 'drop') return;
+
+        // Check if the drag is over the corkboard area
+        const boardRect = corkboard.getBoundingClientRect();
+        const x = e.clientX;
+        const y = e.clientY;
+        const isOverBoard = x >= boardRect.left && x <= boardRect.right &&
+            y >= boardRect.top && y <= boardRect.bottom;
+
+        if (eventName === 'dragenter') {
+            if (isOverBoard && hasFiles) {
+                dragCounter++;
+                isDraggingFiles = true;
+                corkboard.classList.add('drag-over');
+            }
+        } else if (eventName === 'dragover') {
+            if (isOverBoard && hasFiles) {
+                e.preventDefault();
+                e.stopPropagation();
+                e.dataTransfer.dropEffect = 'copy';
+            }
+        } else if (eventName === 'dragleave') {
+            // Check if we're actually leaving the corkboard (not just a child element)
+            if (!isOverBoard && isDraggingFiles) {
+                dragCounter--;
+                if (dragCounter <= 0) {
+                    dragCounter = 0;
+                    isDraggingFiles = false;
+                    corkboard.classList.remove('drag-over');
+                }
+            }
+        } else if (eventName === 'drop') {
+            e.preventDefault();
+            e.stopPropagation();
+            dragCounter = 0;
+            isDraggingFiles = false;
+            corkboard.classList.remove('drag-over');
+
+            // Only process if we have files and we're over the board
+            if (isOverBoard && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                const files = Array.from(e.dataTransfer.files);
+                const imageFiles = files.filter(file => file.type.startsWith('image/'));
+
+                if (imageFiles.length > 0) {
+                    // Get drop position relative to the corkboard
+                    const boardPos = screenToBoard(e.clientX, e.clientY);
+
+                    // Process each image file
+                    imageFiles.forEach((file, index) => {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            // Offset each image slightly so they don't overlap
+                            const offsetX = index * 50;
+                            const offsetY = index * 50;
+                            createMediaItem(
+                                event.target.result,
+                                Math.max(25, Math.min(boardPos.x + offsetX, corkboard.offsetWidth - 325)),
+                                Math.max(25, Math.min(boardPos.y + offsetY, corkboard.offsetHeight - 325))
+                            );
+                        };
+                        reader.readAsDataURL(file);
+                    });
+                }
+            }
+        }
+    };
+
+    // Add event listeners to the document for global file drag detection
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        document.addEventListener(eventName, (e) => {
+            handleDragEvent(e, eventName);
+        }, false);
+    });
+}
+
 // update color picker based on note type
 document.getElementById('noteType').addEventListener('change', (e) => {
     const type = e.target.value;
