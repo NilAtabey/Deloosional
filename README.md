@@ -1,8 +1,17 @@
-Welcome to Deloosional! The sample project for the [CSG Hackathon](https://cs-girlies-november.devpost.com/).
+# 🔍 Deloosional
 
-> Redefining Learning, Community, and Diversity in Technology
+<div align="center">
 
-> Join Computer Science Girlies today at [csgirlies.com](https://www.csgirlies.com/)
+![CSG Logo](graphics/csg-logo.png)
+
+
+*Redefining Learning, Community, and Diversity in Technology*
+
+[Join Computer Science Girlies](https://www.csgirlies.com/) • [Find out more about the hackathon](https://cs-girlies-november.devpost.com/)
+
+</div>
+
+---
 
 ![Homepage](app-screenshots/image0.png)
 
