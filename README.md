@@ -98,7 +98,7 @@ Deloosional/
 
 ## AI Usage Statement
 
-> This project was developed with assistance from AI tools (Cursor, Claude, ChatGPT, and Gemini 2.5 Pro for the logo generation) for code generation, debugging, and documentation. All AI-generated code was reviewed, tested, and customized to meet project requirements. The core architecture and creative direction remain human-designed.
+> This project was developed with assistance from AI tools (Cursor, Claude, ChatGPT, and Gemini) for code generation, debugging, graphics design and documentation. All AI-generated code was reviewed, tested, and customized to meet project requirements. The core architecture and creative direction remain human-designed.
 
 ## License
 
