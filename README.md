@@ -18,15 +18,15 @@ Deloosional is a detective-themed investigation board application that reimagine
 
 ### Technical Features
 
-- **Multi-Board State Management**: Up to 6 concurrent boards with independent state trees, programmatic thumbnail generation, localStorage persistence with automatic serialization, and timestamp-based unique identifiers
-- **Canvas-Based Connection System**: Real-time Bézier curve rendering with proximity-based hit detection, dynamic line styling with anti-aliasing, toggleable visibility, and custom drag-to-connect interaction model
-- **Transform and Viewport Management**: CSS transform-based zoom (0.25x-3x) with origin preservation, mousedown/mousemove event delegation for panning, transform matrix coordinate conversion, and requestAnimationFrame-optimized smooth transitions
-- **Drag-and-Drop Physics**: Custom draggable implementation with collision detection, z-index management for overlay stacking, mouse offset calculations for grab point consistency, and pointer event normalization for mobile compatibility
-- **Inline Content Editing**: ContentEditable API integration with CSS pseudo-element placeholder simulation, dynamic text contrast based on luminance calculation, and auto-resize with min/max constraints
-- **Media Annotation System**: Client-side image upload via File Reader API with canvas overlay for freehand annotation, persistent drawing state as canvas data URLs, color picker with real-time preview, and adjustable brush controls
-- **Audio Integration**: Embedded jazz radio with play/pause state management, synchronized sound effects for animations (gavel impact at keyframe 42%), audio preloading with lazy initialization, and autoplay policy fallback handling
-- **Export Functionality**: High-resolution board capture via html2canvas DOM traversal with automatic scaling for quality enhancement and programmatic PNG download generation via canvas-to-blob conversion
-- **Visual Effects**: CSS brightness filter for "Lights Off" mode with selective logo compensation, SVG gavel animation with multi-keyframe choreography, cubic-bezier stamp appearance with overshoot effect, and synchronized audio playback
+- **Multi-Board State Management**: Supports up to 6 concurrent boards. Each board has independent state. Programmatic thumbnail generation. localStorage persistence with automatic serialization. Timestamp-based unique identifiers.
+- **Canvas-Based Connection System**: Real-time Bézier curve rendering. Proximity-based hit detection. Dynamic line styling with anti-aliasing. Toggleable visibility. Custom drag-to-connect interaction.
+- **Transform and Viewport Management**: CSS transform-based zoom (0.25x-3x). Origin preservation. Event delegation for panning. Transform matrix coordinate conversion. RequestAnimationFrame-optimized transitions.
+- **Drag-and-Drop Physics**: Custom draggable implementation. Collision detection. Z-index stacking management. Mouse offset calculations for consistency. Pointer event normalization for mobile.
+- **Inline Content Editing**: ContentEditable API integration. CSS pseudo-element placeholder simulation. Dynamic text contrast via luminance calculation. Auto-resize with min/max constraints.
+- **Media Annotation System**: Client-side image upload via File Reader API. Canvas overlay for freehand annotation. Persistent drawing state as data URLs. Color picker with real-time preview. Adjustable brush controls.
+- **Audio Integration**: Embedded jazz radio with state management. Synchronized sound effects for animations. Gavel impact at keyframe 42%. Audio preloading with lazy initialization. Autoplay policy fallback handling.
+- **Export Functionality**: High-resolution board capture via html2canvas. DOM traversal with automatic scaling. Quality enhancement. Programmatic PNG download via canvas-to-blob conversion.
+- **Visual Effects**: CSS brightness filter for "Lights Off" mode. Selective logo compensation. SVG gavel animation with multi-keyframe choreography. Cubic-bezier stamp appearance with overshoot. Synchronized audio playback.
 
 ## Feature Breakdown
 
@@ -82,6 +82,10 @@ Deloosional/
 **Canvas Rendering:** Connection lines redraw on every state change (note move, zoom, pan) using a clear-and-redraw pattern. Performance remains acceptable due to small element count (typical boards < 50 elements).
 
 **Coordinate Systems:** The application maintains two coordinate spaces-viewport coordinates (screen pixels) and board coordinates (corkboard pixels). Transform matrices convert between spaces for accurate click detection during zoom/pan operations.
+
+## AI Usage Statement
+
+> This project was developed with assistance from AI tools (Cursor, Claude, ChatGPT, and Gemini 2.5 Pro for the logo generation) for code generation, debugging, and documentation. All AI-generated code was reviewed, tested, and customized to meet project requirements. The core architecture and creative direction remain human-designed.
 
 ## License
 
