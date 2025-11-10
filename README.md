@@ -1,8 +1,6 @@
-# 🔍 Deloosional
-
 <div align="center">
 
-![CSG Logo](graphics/csg-logo.png)
+<img src="graphics/csg-logo.png" alt="CSG Logo" width="200">
 
 
 *Redefining Learning, Community, and Diversity in Technology*
